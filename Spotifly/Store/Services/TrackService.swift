@@ -134,9 +134,11 @@ final class TrackService {
     /// does, ends it, and the failure stays on `favoritesPagination`.
     func loadAllFavorites() async {
         while store.favoritesPagination.hasMore, !Task.isCancelled {
-            let before = store.savedTrackIds.count
+            // By offset, not by the ids kept: a page of tracks already listed, as relinking
+            // makes, adds no id and still moves the list on.
+            let before = store.favoritesPagination.nextOffset
             try? await loadFavorites()
-            guard store.savedTrackIds.count > before else { return }
+            guard store.favoritesPagination.nextOffset != before else { return }
         }
     }
 
