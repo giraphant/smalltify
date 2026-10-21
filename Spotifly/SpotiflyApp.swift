@@ -146,6 +146,7 @@ struct SpotiflyCommands: Commands {
     let windowState: WindowState
     @FocusedValue(\.navigationCoordinator) var navigationCoordinator
     @FocusedValue(\.homeService) var homeService
+    @AppStorage(SpotifyPlayer.avPlayerOutputKey) private var useAVPlayerOutput = false
 
     private var playbackViewModel: PlaybackViewModel {
         PlaybackViewModel.shared
@@ -261,6 +262,9 @@ struct SpotiflyCommands: Commands {
                     sessions?.current?.store.debugDumpJSON()
                 }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
+
+                // The probe's output (`plans/open/avplayer-output-probe.md`), chosen at launch.
+                Toggle("Use AVPlayer Output (from Next Launch)" as String, isOn: $useAVPlayerOutput)
 
                 // The grant's own token, which is what every request now carries. Paste it
                 // into a curl and you are the app.

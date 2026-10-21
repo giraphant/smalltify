@@ -119,13 +119,23 @@ nonisolated struct PlayerSnapshot: Equatable {
 }
 
 /// The one audio output. Fed by the decode loop inside the pipeline; volume,
-/// routing recovery and pacing all live in it.
-private nonisolated let audioRendererInstance = AudioRenderer()
+/// routing recovery and pacing all live in it. The renderer, or, behind the Debug menu's switch,
+/// an `AVPlayer` streaming what the pipeline pushes (`plans/open/avplayer-output-probe.md`);
+/// chosen once, at launch.
+private nonisolated let audioSinkInstance: any AudioSink = SpotifyPlayer.usesAVPlayerOutput
+    ? StreamingPlayerSink()
+    : AudioRenderer()
 
 enum SpotifyPlayer {
+    /// The key of the Debug menu's "Use AVPlayer Output", read at launch.
+    nonisolated static let avPlayerOutputKey = "useAVPlayerOutput"
+
+    /// Whether this launch plays through `StreamingPlayerSink`.
+    nonisolated static let usesAVPlayerOutput = UserDefaults.standard.bool(forKey: avPlayerOutputKey)
+
     /// The shared audio sink the client's pipeline renders into.
-    nonisolated static var audioRenderer: AudioRenderer {
-        audioRendererInstance
+    nonisolated static var audioSink: any AudioSink {
+        audioSinkInstance
     }
 
     // MARK: - Lifecycle
@@ -293,7 +303,7 @@ enum SpotifyPlayer {
     /// buffer-independent response. The slider value is passed through a
     /// logarithmic taper so the perceived loudness curve matches librespot's.
     nonisolated static func setOutputVolume(_ volume: Double) {
-        audioRenderer.setVolume(Float(librespotLogAttenuation(volume)))
+        audioSink.setVolume(Float(librespotLogAttenuation(volume)))
     }
 
     /// Mirrors librespot's default `VolumeCtrl::Log(60 dB)` mapping
