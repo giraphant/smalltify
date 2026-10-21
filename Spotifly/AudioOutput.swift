@@ -24,7 +24,7 @@ import Synchronization
 /// session: an item started while a receiver is chosen never asks its loader for a byte, so a
 /// `restart` (a load, a seek) is a seek within it to where the new audio begins, the end of what
 /// is written. Nothing is decoded ahead as a whole file: `enqueue` returns once what is written
-/// ahead of the playhead is under `aheadTarget`, or at once while the player waits for data.
+/// ahead of the playhead is under `aheadTarget`.
 ///
 /// A buffer waiting in `enqueue` across a `restart` or a `stop` is the pipeline's to retire: it
 /// cancels its decode, and awaits it, before either.
@@ -42,12 +42,11 @@ actor AudioOutput {
         case failed
     }
 
-    /// Written ahead of the playhead before `enqueue` waits. The player keeps a buffer of its own
-    /// ahead of what is heard; with 3 s it starved after a resume and stood still.
-    private static let aheadTarget = 10.0
-    /// Written ahead at most, whatever the player says, so a player that never starts does not
-    /// take the whole track into memory.
-    private static let aheadLimit = 30.0
+    /// Written ahead of the playhead before `enqueue` waits: about what the player reads ahead of
+    /// what is heard, measured as 30 s here and 25 s on a HomePod. With 10 s the HomePod ran the
+    /// player's buffer empty about 5 s after a seek, the Mac sending well ahead of what it plays;
+    /// with 3 s the player starved here after a resume.
+    private static let aheadTarget = 30.0
 
     /// The session's stream.
     private var stream: PCMStream?
@@ -58,10 +57,6 @@ actor AudioOutput {
     private nonisolated let origin = Mutex<Int64>(0)
     /// Frames a stream holds before the next restart begins a new one: a week, less ten minutes.
     private static let streamCapacity = PCMStream.declaredFrames - Int64(sampleRate * 600)
-    /// The playhead when it last moved, and when that was: a player that plays and does not
-    /// move wants data it has not got, which it does not say while it does not wait to play.
-    private var lastPlayhead: (frames: Int64, at: ContinuousClock.Instant) = (0, .now)
-
     /// The latest volume asked for, which the player takes on the main actor.
     private nonisolated let requestedVolume = Mutex<Float>(1)
 
@@ -84,21 +79,14 @@ actor AudioOutput {
             if state.failed {
                 return .failed
             }
-            let played = playedFrames
-            if played != lastPlayhead.frames {
-                lastPlayhead = (played, .now)
-            }
             let written = streamFrames - origin.withLock { $0 }
-            let ahead = Double(written - played) / Double(Self.sampleRate)
-            let waiting = state.status == .waitingToPlayAtSpecifiedRate
-            let starved = state.status == .playing && lastPlayhead.at.duration(to: .now) > .milliseconds(300)
-            if ahead < Self.aheadTarget || ((waiting || starved) && ahead < Self.aheadLimit) {
+            let ahead = Double(written - playedFrames) / Double(Self.sampleRate)
+            if ahead < Self.aheadTarget {
                 return .accepted
             }
             // Asleep until a second under the target, so the decode fills that second in one
             // go: checked every 50 ms, the wait woke the app 12 times a second, against 3 for the
-            // renderer this replaced. A starving player is noticed within the second; a paused
-            // one, which takes nothing, is looked at every 5 s.
+            // renderer this replaced. A paused player, which takes nothing, is looked at every 5 s.
             let cap = state.status == .paused ? 5.0 : 1.0
             try? await Task.sleep(for: .seconds(min(cap, max(0.05, ahead - (Self.aheadTarget - 1)))))
         }
@@ -129,8 +117,6 @@ actor AudioOutput {
     }
 
     func resume() async {
-        // Stood still while paused: from now on, not standing still is starving.
-        lastPlayhead = (playedFrames, .now)
         await output.resume()
     }
 
@@ -194,6 +180,8 @@ final class AudioOutputPlayer {
 
     private nonisolated init() {
         let player = AVPlayer()
+        // Waiting to minimise stalls, the player waited for good: it holds out for a rate of data
+        // the output, which writes as the playhead moves, never shows it.
         player.automaticallyWaitsToMinimizeStalling = false
         // The Mac renders and sends the audio to a receiver itself. Allowed to, the player hands
         // a new item's URL to the receiver, which cannot open this app's scheme: an item started
@@ -311,7 +299,8 @@ final class AudioOutputPlayer {
         case .waitingToPlayAtSpecifiedRate:
             debugLog("AudioOutput", "Waiting: \(reason ?? "?")")
         case .paused where wantsToPlay && !seekInFlight:
-            // Stalled: nothing else will start it again.
+            // Stalled: nothing else will start it again. Often only the status of a seek's pause,
+            // read after the seek is done: the player then plays already.
             debugLog("AudioOutput", "Paused by itself; playing again")
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(100))
@@ -484,11 +473,12 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         }
     }
 
-    /// Keeps 8 MB behind the earliest offset a waiting request is at, about 24 s of audio, for a
-    /// player that asks again a little way back, dropping whole chunks.
+    /// Keeps a minute of audio, about 20 MB, behind the earliest offset a waiting request is at,
+    /// for a player that asks again a little way back, dropping whole chunks. The player reads
+    /// about as far ahead as the output writes, 30 s, so this reaches some 30 s behind what plays.
     private func trim() {
         let earliest = pending.compactMap { $0.dataRequest?.currentOffset }.min() ?? written
-        let keepFrom = earliest - 8 * 1024 * 1024
+        let keepFrom = earliest - Int64(AudioOutput.sampleRate * AudioOutput.bytesPerFrame * 60)
         var drop = 0
         while drop + 1 < offsets.count, offsets[drop + 1] <= keepFrom {
             drop += 1
