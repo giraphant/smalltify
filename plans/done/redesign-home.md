@@ -1,6 +1,6 @@
 # Redesign: Startseite
 
-Status: **Open**, planned 2026-10-21. Fifth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #209. Fifth of the stacked redesign PRs
 Components: `Spotifly/Views/StartpageView.swift`, `Spotifly/Store/Services/HomeService.swift`,
 `Spotifly/Store/AppStore.swift`, `Spotifly/PartnerAPI/PathfinderHome.swift`,
 `Spotifly/PartnerAPI/PathfinderTopContent.swift` (new), `Spotifly/PartnerAPI/PathfinderOperations.swift`,
@@ -67,3 +67,21 @@ Spotify's other shelves (mixes, radio, "Für …") are no longer shown, as the h
 - Build, unit tests.
 - Run the Debug build and screenshot the page; switch the range picker and see the list change;
   double-click a top track and see it play; "Alle anzeigen" opens Playlists.
+
+### Result
+
+- **The recently played shelf comes in two forms.** The web player's `home` had a
+  `HomeRecentlyPlayedSectionData` "Zuletzt" (`…0JQ5DAroEmF9ANbLaiJ7XR`); the app's, for the same
+  account and persisted query minutes later, a `HomeGenericSectionData` "Zuletzt gehört"
+  (`spotify:section:0JQ5DAob0KZzPQKc9YbqhR`). `PathfinderHomeSection.isRecentlyPlayed` takes
+  either; if Spotify sends neither, the section is not shown.
+- Top artists follow the picker too, so a range is one request; the handoff's artist row had
+  no range of its own. Playlist cards name their owner: the library and the home page record an
+  unknown track count as 0, so the handoff's "N Titel" for own playlists is not available here.
+- Live: all four sections; "1 Jahr" listed the long-term tracks the web player returned; a
+  double-click on "Fragole" played it; "Alle anzeigen" opened Playlists.
+- Reviews: `/simplify` reused `PathfinderItems`, moved the uri-derived id onto
+  `PathfinderTrack`, made refresh concurrent, loaded playlists once, and dropped the greeting
+  nothing shows. `/code-review` found a failed load spinning forever (now a retry). Codex found
+  three more, all fixed: top tracks overwrote a known track's playability, a failed range was
+  never retried on refresh, and a superseded range load cleared the shown range's error.
