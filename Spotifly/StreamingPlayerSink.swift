@@ -170,6 +170,10 @@ final class StreamingPlayerOutput {
     /// pauses itself, and stays paused: measured on resuming on a HomePod, where it flipped to
     /// paused 70 ms after playing, with data loaded beyond the playhead.
     private var wantsToPlay = false
+    /// Numbers the seeks, so only the latest plays when done, or is made again.
+    private var seeks = 0
+    /// Whether a seek is under way: the player is held for it, which is not a stall.
+    private var seekInFlight = false
 
     private nonisolated init() {
         let player = AVPlayer()
@@ -246,21 +250,36 @@ final class StreamingPlayerOutput {
 
     /// Moves the item to `frame`, where the next run's audio will be written, and plays from
     /// there or holds. The loader answers the range request this makes as the audio arrives.
+    ///
+    /// Held while it seeks, and played only once the seek is done: playing at once cancelled the
+    /// seek now and then ("superseded after 0 ms"), and the player went on through what it had
+    /// buffered of the old position, 2.4 s of the track before, on the HomePod. A seek cancelled
+    /// otherwise is made again, unless a newer one has replaced it.
     func seek(toFrame frame: Int64, paused: Bool) {
         restartedAt = .now
-        let generation = stream?.generation ?? 0
+        seeks += 1
+        seekInFlight = true
         wantsToPlay = !paused
-        if paused {
-            player.pause()
-        }
-        let time = CMTime(value: frame, timescale: CMTimeScale(StreamingPlayerSink.sampleRate))
+        player.pause()
+        seek(to: CMTime(value: frame, timescale: CMTimeScale(StreamingPlayerSink.sampleRate)), number: seeks, attempt: 1)
+    }
+
+    private func seek(to time: CMTime, number: Int, attempt: Int) {
+        let generation = stream?.generation ?? 0
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
             Task { @MainActor in
-                debugLog("PlayerSink", "Stream \(generation): seek to \(String(format: "%.2f", time.seconds)) s \(finished ? "done" : "superseded") after \(StreamingPlayerOutput.shared.elapsedMs()) ms")
+                let output = StreamingPlayerOutput.shared
+                debugLog("PlayerSink", "Stream \(generation): seek to \(String(format: "%.2f", time.seconds)) s \(finished ? "done" : "superseded") after \(output.elapsedMs()) ms")
+                guard number == output.seeks else { return }
+                if !finished, attempt < 3 {
+                    output.seek(to: time, number: number, attempt: attempt + 1)
+                    return
+                }
+                output.seekInFlight = false
+                if output.wantsToPlay {
+                    output.player.playImmediately(atRate: 1)
+                }
             }
-        }
-        if !paused {
-            player.playImmediately(atRate: 1)
         }
     }
 
@@ -269,9 +288,12 @@ final class StreamingPlayerOutput {
         player.pause()
     }
 
+    /// Mid-seek it only says so: the seek plays when done.
     func resume() {
         wantsToPlay = true
-        player.playImmediately(atRate: 1)
+        if !seekInFlight {
+            player.playImmediately(atRate: 1)
+        }
     }
 
     func setVolume(_ volume: Float) {
@@ -300,12 +322,12 @@ final class StreamingPlayerOutput {
             debugLog("PlayerSink", "Playing, \(elapsedMs()) ms after the restart")
         case .waitingToPlayAtSpecifiedRate:
             debugLog("PlayerSink", "Waiting: \(reason ?? "?")")
-        case .paused where wantsToPlay:
+        case .paused where wantsToPlay && !seekInFlight:
             // Stalled: nothing else will start it again.
             debugLog("PlayerSink", "Paused by itself; playing again")
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(100))
-                guard let self, wantsToPlay, player.timeControlStatus == .paused else { return }
+                guard let self, wantsToPlay, !seekInFlight, player.timeControlStatus == .paused else { return }
                 player.playImmediately(atRate: 1)
             }
         case .paused:
