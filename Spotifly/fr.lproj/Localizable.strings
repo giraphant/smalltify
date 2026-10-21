@@ -71,6 +71,7 @@
 "repeat.off" = "Répéter";
 "repeat.context" = "Répéter : tout";
 "repeat.track" = "Répéter : ce titre";
+"repeat.unavailable" = "La répétition n'est pas disponible pour ce qui est en cours de lecture, comme une radio";
 
 /* Loading States */
 "loading.favorites" = "Chargement des titres likés...";

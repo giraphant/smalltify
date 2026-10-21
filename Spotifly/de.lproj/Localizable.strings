@@ -71,6 +71,7 @@
 "repeat.off" = "Wiederholen";
 "repeat.context" = "Wiederholen: alle";
 "repeat.track" = "Wiederholen: diesen Titel";
+"repeat.unavailable" = "Wiederholen ist für die aktuelle Wiedergabe nicht verfügbar, etwa für ein Radio";
 
 /* Loading States */
 "loading.favorites" = "Lade Favoriten...";

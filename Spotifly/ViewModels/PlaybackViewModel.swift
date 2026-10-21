@@ -66,6 +66,8 @@ final class PlaybackViewModel {
         var canSkipNext: Bool
         /// See `PlaybackState.canShuffle`.
         var canShuffle: Bool
+        /// See `PlaybackState.canRepeat`.
+        var canRepeat: Bool
     }
 
     var isPlaying: Bool {
@@ -1006,6 +1008,11 @@ final class PlaybackViewModel {
         shown?.canShuffle ?? true
     }
 
+    /// Whether repeat may be switched on; see `PlaybackState.canRepeat`.
+    var canRepeat: Bool {
+        shown?.canRepeat ?? true
+    }
+
     // MARK: - Media Keys & Now Playing
 
     private func setupRemoteCommandCenter() {
@@ -1467,6 +1474,7 @@ final class PlaybackViewModel {
             repeatMode: .init(context: state.repeatContext, track: state.repeatTrack),
             canSkipNext: state.canSkipNext,
             canShuffle: state.canShuffle,
+            canRepeat: state.canRepeat,
         )
 
         // Sync position anchor on state changes. When monitoring a remote device,

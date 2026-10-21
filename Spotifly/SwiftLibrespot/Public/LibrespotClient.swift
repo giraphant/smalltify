@@ -1554,6 +1554,7 @@ public actor LibrespotClient {
             // The web player playing a station names it, and greys its own Shuffle, and
             // librespot does while it plays autoplay (2026-10-02).
             canShuffle: remote.restrictions.allowsShuffle,
+            canRepeat: remote.restrictions.allows(.context),
         )
         let queue = Self.mirroredQueue(of: remote)
         mirroredRemote = remote
@@ -1971,6 +1972,7 @@ public actor LibrespotClient {
             repeatContext: playbackQueue.repeatMode == .context,
             timestampMs: Int64(Date().timeIntervalSince1970 * 1000),
             canShuffle: playbackQueue.restrictions.allowsShuffle,
+            canRepeat: playbackQueue.restrictions.allows(.context),
         )
         let arrived = localState == nil
         localState = state

@@ -71,6 +71,7 @@
 "repeat.off" = "Repeat";
 "repeat.context" = "Repeat: all";
 "repeat.track" = "Repeat: this track";
+"repeat.unavailable" = "Repeat is not available for what is playing, such as a radio";
 
 /* Loading States */
 "loading.favorites" = "Loading favorites...";
