@@ -550,10 +550,11 @@ final class PlaybackViewModel {
     /// order, here and on another device.
     func playShuffled(uriOrUrl: String, trackUris: [String]) async {
         guard let index = trackUris.indices.randomElement() else { return }
-        if !isShuffleEnabled {
-            toggleShuffle()
-        }
         await play(uriOrUrl: uriOrUrl, trackIndex: index, startingAtUri: trackUris[index])
+        // After the play, so the context that plays now is the one asked: one that refuses
+        // shuffle, as a radio does, refused it while it still played. Set, not toggled: the
+        // state shown may still be the old context's.
+        setShuffle(true)
     }
 
     func playTracks(_ trackUris: [String]) async {
@@ -990,7 +991,11 @@ final class PlaybackViewModel {
     }
 
     func toggleShuffle() {
-        let targetShuffle = !isShuffleEnabled
+        setShuffle(!isShuffleEnabled)
+    }
+
+    func setShuffle(_ enabled: Bool) {
+        let targetShuffle = enabled
 
         sendTransportCommand(
             "toggleShuffle()",
