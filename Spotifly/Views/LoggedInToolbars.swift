@@ -86,10 +86,14 @@ private struct LoggedInContextToolbarActions: View {
     var body: some View {
         switch navigationCoordinator.selectedNavigationItem {
         case .albums:
-            if let albumId = navigationCoordinator.selectedAlbumId,
-               let album = store.albums[albumId]
-            {
-                albumToolbarActions(album: album)
+            HStack(spacing: 8) {
+                albumSortPicker
+
+                if let albumId = navigationCoordinator.selectedAlbumId,
+                   let album = store.albums[albumId]
+                {
+                    albumToolbarActions(album: album)
+                }
             }
         case .artists:
             if let artistId = navigationCoordinator.selectedArtistId,
@@ -119,41 +123,69 @@ private struct LoggedInContextToolbarActions: View {
         }
     }
 
+    /// Share, and a menu with the rest, as the handoff's album toolbar has it.
     private func albumToolbarActions(album: Album) -> some View {
         HStack(spacing: 8) {
-            ToolbarActionButton(
-                title: "track.menu.play_next",
-                systemImage: "text.line.first.and.arrowtriangle.forward",
-            ) {
-                Task {
-                    await playbackViewModel.addToQueue(uri: album.uri)
-                }
-            }
+            shareLink(for: album.uri)
 
-            ShareToolbarButton(uri: album.uri)
-
-            if let artistId = album.artistId {
-                ToolbarActionButton(title: "track.menu.go_to_artist", systemImage: "person") {
-                    navigationCoordinator.navigateToArtistSection(artistId: artistId)
+            Menu {
+                Button("action.play", systemImage: "play.fill") {
+                    Task { await playbackViewModel.play(uriOrUrl: album.uri) }
                 }
-            }
-
-            if store.userAlbumIds.contains(album.id) {
-                ToolbarActionButton(
-                    title: "album.menu.remove_from_library",
-                    systemImage: "minus.circle",
-                    role: .destructive,
-                ) {
-                    NotificationCenter.default.post(name: .showAlbumRemoveConfirmation, object: album.id)
+                Button("track.menu.play_next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                    Task { await playbackViewModel.addToQueue(uri: album.uri) }
                 }
-            } else {
-                ToolbarActionButton(title: "album.menu.add_to_library", systemImage: "plus.circle") {
-                    Task {
-                        try? await albumService.saveAlbumToLibrary(albumId: album.id)
+                Menu {
+                    PlaylistSubmenuContent(store: store, playlistService: playlistService) { playlistId in
+                        addTracks(of: album, toPlaylist: playlistId)
+                    }
+                } label: {
+                    Label("track.menu.add_to_playlist", systemImage: "music.note.list")
+                }
+                .disabled(album.trackIds.isEmpty)
+
+                Divider()
+
+                if let artistId = album.artistId {
+                    Button("track.menu.go_to_artist", systemImage: "person") {
+                        navigationCoordinator.navigateToArtistSection(artistId: artistId)
                     }
                 }
+                Button("action.copy_link", systemImage: "link") {
+                    copyLink(of: album.uri)
+                }
+            } label: {
+                Label("action.more", systemImage: "ellipsis")
+            }
+            .labelStyle(.iconOnly)
+            .help("action.more")
+        }
+    }
+
+    /// The album's playable tracks, added to a playlist in its order.
+    private func addTracks(of album: Album, toPlaylist playlistId: String) {
+        let trackIds = album.trackIds.filter { store.tracks[$0]?.isPlayable != false }
+        Task {
+            do {
+                try await playlistService.addTracksToPlaylist(playlistId: playlistId, trackIds: trackIds)
+            } catch {
+                playbackViewModel.errorMessage = String(localized: "error.add_to_playlist \(error.localizedDescription)")
             }
         }
+    }
+
+    /// The sort of the album list, at the toolbar's leading edge.
+    private var albumSortPicker: some View {
+        Picker("library.sort", selection: Binding(get: { albumService.sort }, set: { sort in
+            Task { try? await albumService.setSort(sort) }
+        })) {
+            Text("library.sort.recently_added").tag(AlbumSort.recentlyAdded)
+            Text("library.sort.title").tag(AlbumSort.title)
+            Text("library.sort.artist").tag(AlbumSort.artist)
+        }
+        .pickerStyle(.menu)
+        .fixedSize()
+        .help("library.sort")
     }
 
     private func artistToolbarActions(artist: Artist) -> some View {
@@ -181,13 +213,7 @@ private struct LoggedInContextToolbarActions: View {
     /// Share, and a menu with the rest, as the handoff's playlist toolbar has it.
     private func playlistToolbarActions(playlist: Playlist) -> some View {
         HStack(spacing: 8) {
-            if let link = SpotifyURI.webURL(playlist.uri).flatMap(URL.init(string:)) {
-                ShareLink(item: link) {
-                    Label("action.share", systemImage: "square.and.arrow.up")
-                }
-                .labelStyle(.iconOnly)
-                .help("action.share")
-            }
+            shareLink(for: playlist.uri)
 
             Menu {
                 Button("action.play", systemImage: "play.fill") {
@@ -232,6 +258,17 @@ private struct LoggedInContextToolbarActions: View {
             }
             .labelStyle(.iconOnly)
             .help("action.more")
+        }
+    }
+
+    @ViewBuilder
+    private func shareLink(for uri: String) -> some View {
+        if let link = SpotifyURI.webURL(uri).flatMap(URL.init(string:)) {
+            ShareLink(item: link) {
+                Label("action.share", systemImage: "square.and.arrow.up")
+            }
+            .labelStyle(.iconOnly)
+            .help("action.share")
         }
     }
 
