@@ -118,11 +118,10 @@ final class TrackService {
 
                 let trackIds = tracks.map(\.id)
                 if offset == 0 {
-                    self.store.setSavedTrackIds(trackIds)
+                    self.store.setSavedTrackIds(trackIds, addedAt: page.addedAtByTrackId)
                 } else {
-                    self.store.appendSavedTrackIds(trackIds)
+                    self.store.appendSavedTrackIds(trackIds, addedAt: page.addedAtByTrackId)
                 }
-                self.store.addFavoriteAddedAt(page.addedAtByTrackId, replacing: offset == 0)
                 self.store.markTracksAsFavorite(trackIds)
 
                 return (page.items?.count ?? 0, page.totalCount ?? 0)
@@ -130,12 +129,15 @@ final class TrackService {
         }
     }
 
-    /// Load more favorites (pagination)
-    func loadMoreFavorites() async throws {
-        guard store.favoritesPagination.hasMore, !listRequests.isRunning(Self.listKey) else {
-            return
+    /// Loads the pages not loaded yet, one after the other, for a list that sorts and filters
+    /// all of them. Each call joins a load already running; one that adds nothing, as a failure
+    /// does, ends it, and the failure stays on `favoritesPagination`.
+    func loadAllFavorites() async {
+        while store.favoritesPagination.hasMore, !Task.isCancelled {
+            let before = store.savedTrackIds.count
+            try? await loadFavorites()
+            guard store.savedTrackIds.count > before else { return }
         }
-        try await loadFavorites()
     }
 
     // MARK: - Favorite Toggling (Optimistic)

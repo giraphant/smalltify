@@ -74,18 +74,17 @@ struct TrackTable: View {
     }
 
     var body: some View {
-        let playingUri = playbackViewModel.currentTrackUri
-
         Table(sortedRows, selection: $selection, sortOrder: sortable ? $sortOrder : .constant([])) {
             TableColumn("table.number", value: \.number) { row in
-                NumberCell(number: row.number, isPlaying: row.track.uri == playingUri)
+                NumberCell(number: row.number, trackUri: row.track.uri)
                     .modifier(cellEnvironment)
             }
             .width(36)
             .defaultVisibility(columns.contains(.number) ? .visible : .hidden)
 
             TableColumn("table.title", value: \.title) { row in
-                TitleCell(track: row.track, isPlaying: row.track.uri == playingUri)
+                TitleCell(track: row.track)
+                    .modifier(cellEnvironment)
             }
 
             TableColumn("table.album", value: \.album) { row in
@@ -121,16 +120,20 @@ struct TrackTable: View {
             .width(56)
         }
         .contextMenu(forSelectionType: TrackTableRow.ID.self) { ids in
-            if let id = ids.first, let row = rows.first(where: { $0.id == id }) {
+            if let row = row(for: ids) {
                 RowMenu(row: row, currentSection: currentSection, selectionId: selectionId) {
                     newPlaylistTrackId = row.track.id
                 }
                 .modifier(cellEnvironment)
             }
         } primaryAction: { ids in
-            if let id = ids.first, let row = rows.first(where: { $0.id == id }) {
+            if let row = row(for: ids) {
                 playRow(row)
             }
+        }
+        // One check for every row's heart, rather than one per row as it scrolls in.
+        .task(id: rows.count) {
+            await trackService.ensureFavoriteStatuses(trackIds: rows.map(\.track.id))
         }
         .newPlaylistPrompt(
             isPresented: Binding(get: { newPlaylistTrackId != nil }, set: {
@@ -154,6 +157,11 @@ struct TrackTable: View {
             playlistService: playlistService,
             navigationCoordinator: navigationCoordinator,
         )
+    }
+
+    /// The row a click or a menu names: the first of the selection.
+    private func row(for ids: Set<TrackTableRow.ID>) -> TrackTableRow? {
+        ids.first.flatMap { id in rows.first { $0.id == id } }
     }
 
     /// A track Spotify will not play starts nothing, and says why, as in every list.
@@ -185,16 +193,17 @@ private struct CellEnvironment: ViewModifier {
     }
 }
 
-/// The row's number, or a waveform moving while its track plays.
+/// The row's number, or a waveform moving while its track plays. Each cell follows the playing
+/// track itself, so a change of it redraws two cells rather than the whole table.
 private struct NumberCell: View {
     let number: Int
-    let isPlaying: Bool
+    let trackUri: String
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
     var body: some View {
         Group {
-            if isPlaying {
+            if playbackViewModel.currentTrackUri == trackUri {
                 Image(systemName: "waveform")
                     .foregroundStyle(.tint)
                     .symbolEffect(.variableColor.iterative, isActive: playbackViewModel.isPlaying)
@@ -212,7 +221,12 @@ private struct NumberCell: View {
 /// with the reason as tooltip, where Spotify will not play it.
 private struct TitleCell: View {
     let track: Track
-    let isPlaying: Bool
+
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    private var isPlaying: Bool {
+        playbackViewModel.currentTrackUri == track.uri
+    }
 
     private static let artworkShape = AnyShape(.rect(cornerRadius: 4))
 
@@ -278,9 +292,6 @@ private struct RowActions: View {
             .help("action.more")
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .task(id: row.track.id) {
-            await trackService.ensureFavoriteStatuses(trackIds: [row.track.id])
-        }
     }
 }
 

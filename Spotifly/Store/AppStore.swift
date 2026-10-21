@@ -409,19 +409,17 @@ final class AppStore {
     /// A knock-on worth knowing: the list can be shorter than the `total` Spotify reports,
     /// because that counts saved entries and this counts tracks. Pagination is unaffected —
     /// offsets are Spotify's side of the conversation.
-    func setSavedTrackIds(_ ids: [String]) {
+    /// The first page of favorites, with when each was added where Liked Songs says.
+    func setSavedTrackIds(_ ids: [String], addedAt: [String: Date] = [:]) {
         savedTrackIds = ids.uniqued()
-    }
-
-    /// Adds a page's dates added; a first page replaces them all.
-    func addFavoriteAddedAt(_ dates: [String: Date], replacing: Bool) {
-        favoriteAddedAt = replacing ? dates : favoriteAddedAt.merging(dates) { old, _ in old }
+        favoriteAddedAt = addedAt
     }
 
     /// Append saved track IDs for Favorites pagination. Deduplicated across the whole list
     /// rather than per page, so two pages can each name the same relinked recording.
-    func appendSavedTrackIds(_ ids: [String]) {
+    func appendSavedTrackIds(_ ids: [String], addedAt: [String: Date] = [:]) {
         savedTrackIds = (savedTrackIds + ids).uniqued()
+        favoriteAddedAt.merge(addedAt) { old, _ in old }
     }
 
     // MARK: - Favorite Actions

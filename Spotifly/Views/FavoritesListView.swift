@@ -66,7 +66,7 @@ struct FavoritesListView: View {
             if store.favoriteTracks.isEmpty, !store.favoritesPagination.isLoading {
                 await loadFavorites()
             }
-            await loadRemainingFavorites()
+            await trackService.loadAllFavorites()
         }
     }
 
@@ -100,7 +100,7 @@ struct FavoritesListView: View {
                 }
         } metadata: {
             // Of the whole list, as Spotify counts it, rather than of the pages loaded so far.
-            Text(verbatim: "\(localizedNumberString("metadata.tracks", max(store.favoritesPagination.total, tracks.count))) · \(totalDuration(of: tracks))")
+            Text(verbatim: "\(localizedNumberString("metadata.tracks", max(store.favoritesPagination.total, tracks.count))) \(String(localized: "metadata.separator")) \(totalDuration(of: tracks))")
         } actions: {
             PlayAndShuffleButtons {
                 Task { await playbackViewModel.play(uriOrUrl: LikedSongs.uri) }
@@ -108,17 +108,6 @@ struct FavoritesListView: View {
                 Task { await playbackViewModel.playShuffled(uriOrUrl: LikedSongs.uri, trackUris: tracks.map(\.uri)) }
             }
             .disabled(tracks.isEmpty)
-        }
-    }
-
-    /// Sorting and the filter need every row, so the pages after the first load one after the
-    /// other rather than on scrolling.
-    /// Each call joins a load already running; one that adds nothing, as a failure does, ends it.
-    private func loadRemainingFavorites() async {
-        while store.favoritesPagination.hasMore, !Task.isCancelled {
-            let before = store.savedTrackIds.count
-            await loadFavorites()
-            guard store.savedTrackIds.count > before else { return }
         }
     }
 

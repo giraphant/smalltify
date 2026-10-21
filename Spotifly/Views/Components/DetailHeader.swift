@@ -18,7 +18,7 @@ struct DetailHeader<Art: View, Metadata: View, Actions: View>: View {
     @ViewBuilder var actions: Actions
 
     /// The side of the art.
-    static var artSize: CGFloat {
+    private static var artSize: CGFloat {
         132
     }
 
