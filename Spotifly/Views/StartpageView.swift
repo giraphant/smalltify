@@ -101,7 +101,9 @@ struct StartpageView: View {
     private func loadTopContent() async {
         topContentFailed = false
         await homeService.loadTopContent(range: range)
-        topContentFailed = store.topContent[range] == nil && !Task.isCancelled
+        // A load superseded by another range's leaves the state to that one.
+        guard !Task.isCancelled else { return }
+        topContentFailed = store.topContent[range] == nil
     }
 
     // MARK: - Sections
