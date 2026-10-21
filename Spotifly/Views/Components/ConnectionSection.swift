@@ -5,7 +5,6 @@
 //  Playing On's connection section: the session's state, its details, and Reconnect.
 //
 
-import CoreAudio
 import SwiftUI
 
 /// The connection to Spotify as form rows: a status with a dot and how long it has held, the
@@ -36,9 +35,6 @@ struct ConnectionSection: View {
                 }
 
                 DisclosureGroup("connection.details") {
-                    LabeledContent("connection.session") {
-                        Text(connection.isConnected ? "connection.connected" : "connection.disconnected")
-                    }
                     LabeledContent("connection.reconnect_attempts", value: "\(connection.reconnectAttempts)")
                     if let deviceId = connection.deviceId {
                         LabeledContent("connection.device_id") {
@@ -75,30 +71,5 @@ struct ConnectionSection: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-}
-
-/// The Mac's default output device, as Sound settings names it.
-enum AudioOutputDevice {
-    /// Its name, such as "MacBook Pro-Lautsprecher", or nil if Core Audio names none.
-    static func defaultName() -> String? {
-        var deviceId = AudioObjectID(kAudioObjectUnknown)
-        var size = UInt32(MemoryLayout<AudioObjectID>.size)
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain,
-        )
-        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceId) == noErr,
-              deviceId != kAudioObjectUnknown
-        else { return nil }
-
-        var name: Unmanaged<CFString>?
-        size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        address.mSelector = kAudioObjectPropertyName
-        guard AudioObjectGetPropertyData(deviceId, &address, 0, nil, &size, &name) == noErr,
-              let name
-        else { return nil }
-        return name.takeRetainedValue() as String
     }
 }

@@ -12,9 +12,12 @@ struct SpeakersView: View {
     @Environment(AuthViewModel.self) private var authViewModel
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
-    /// Whether AirPlay is available (only when Spotifly is the active device)
+    /// This Mac's output device, read when the page appears.
+    @State private var outputDeviceName: String?
+
+    /// Whether AirPlay is available: only while this Mac is the active device.
     private var isAirPlayEnabled: Bool {
-        player.activeDevice?.name == "Spotifly"
+        player.isPlayingHere
     }
 
     var body: some View {
@@ -27,8 +30,9 @@ struct SpeakersView: View {
                         Text("speakers.empty_hint")
                     }
                 } else {
+                    let ownDeviceId = player.ownDeviceId
                     ForEach(player.devices) { device in
-                        SpeakerRow(device: device)
+                        SpeakerRow(device: device, isThisMac: device.id == ownDeviceId)
                     }
                 }
 
@@ -91,7 +95,7 @@ struct SpeakersView: View {
                         .opacity(isAirPlayEnabled ? 1 : 0.5)
                 } label: {
                     Text("speakers.output_device")
-                    if let name = AudioOutputDevice.defaultName() {
+                    if let name = outputDeviceName {
                         Text(verbatim: name)
                     }
                 }
@@ -108,6 +112,9 @@ struct SpeakersView: View {
             }
         }
         .formStyle(.grouped)
+        .task {
+            outputDeviceName = AudioOutputDevice.defaultName()
+        }
         // A form takes no content margins on macOS, so it leaves the bar's room itself.
         .safeAreaInset(edge: .bottom) {
             Spacer().frame(height: NowPlayingBarView.contentClearance)
@@ -119,13 +126,13 @@ struct SpeakersView: View {
 /// tick. A click moves playback to it. The active one has its volume under it.
 struct SpeakerRow: View {
     let device: Device
+    let isThisMac: Bool
     @Environment(DeviceService.self) private var deviceService
     @Environment(PlaybackViewModel.self) private var playbackViewModel
-    @Environment(PlayerModel.self) private var player
 
     /// "This Mac" for this Mac, the device's type otherwise.
     private var typeName: String {
-        device.id == player.connection?.deviceId
+        isThisMac
             ? String(localized: "device_type.this_mac")
             : deviceService.deviceTypeName(for: device.type)
     }

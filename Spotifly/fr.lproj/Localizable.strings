@@ -237,7 +237,6 @@
 
 /* Connection Status */
 "connection.status" = "État";
-"connection.session" = "Session";
 "connection.reconnect_attempts" = "Tentatives de reconnexion";
 "connection.device_id" = "ID de l'appareil";
 "connection.reconnect" = "Se reconnecter";
