@@ -7,6 +7,15 @@
 
 import Foundation
 
+/// The kinds of result a search page shows: all of them a few each, or one of them in full.
+enum SearchScope: Hashable, CaseIterable {
+    case all
+    case tracks
+    case artists
+    case albums
+    case playlists
+}
+
 enum Selection: Hashable {
     case album(id: String)
     case artist(id: String)
@@ -28,10 +37,11 @@ enum Selection: Hashable {
 struct Route: Hashable {
     var section: NavigationItem?
     var selection: Selection?
+    /// A search route's query, or nil for the search page before a search: recent searches.
     var query: String?
-    /// A search route's second page, all of its tracks, which "Show all" opens: a step of its own
-    /// in the history, drawn from the same search's results.
-    var showsAllTracks = false
+    /// Which kinds a search route shows: a step of its own in the history, as the web player's
+    /// search tabs are, drawn from the same search's results.
+    var searchScope = SearchScope.all
 
     static let startpage = Route(section: .startpage)
 }
