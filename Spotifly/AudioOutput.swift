@@ -244,6 +244,15 @@ final class AudioOutputPlayer {
         wantsToPlay = !paused
         player.pause()
         seek(to: CMTime(value: frame, timescale: CMTimeScale(AudioOutput.sampleRate)), number: seeks, attempt: 1)
+        // Seeks take milliseconds. On a HomePod, twice after a stall, the item played on whatever
+        // the player's rate, paused or not, and no seek finished until the app quit
+        // (`plans/open/airplay-stalls.md`): say so when it happens, with whether the item plays.
+        Task { @MainActor [number = seeks] in
+            try? await Task.sleep(for: .seconds(2))
+            guard number == seeks, seekInFlight else { return }
+            let rate = player.currentItem?.timebase.map { CMTimebaseGetRate($0) } ?? 0
+            debugLog("AudioOutput", "Seek \(number) not done after 2 s; the item plays at rate \(rate)")
+        }
     }
 
     private func seek(to time: CMTime, number: Int, attempt: Int) {
