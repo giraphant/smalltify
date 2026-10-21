@@ -358,8 +358,10 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         written = Int64(header.count)
     }
 
-    /// How far past what is written a request must start to be the player's look at the end.
-    private static let tailThreshold: Int64 = 256 * 1024 * 1024
+    /// How close to the declared end a request must start to be the player's look at the end, and
+    /// how far past what is written one must start to be its other look ahead.
+    private static let tailLength: Int64 = 1024 * 1024
+    private static let farAhead: Int64 = 256 * 1024 * 1024
 
     private var declaredLength: Int64 {
         Int64(header.count) + Self.declaredDataBytes
@@ -396,13 +398,18 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         }
         if let data = request.dataRequest {
             debugLog("PlayerSink", "Stream \(generation): request at \(data.requestedOffset), \(data.requestsAllDataToEndOfResource ? "to the end" : "\(data.requestedLength) bytes"), \(written) written")
-            // The player reads the declared end before it plays, to look for chunks after the
-            // data. That far into the data chunk is audio no one will reach: silence answers it.
-            if data.requestedOffset > written + Self.tailThreshold {
-                let end = data.requestsAllDataToEndOfResource
-                    ? declaredLength
-                    : min(declaredLength, data.requestedOffset + Int64(data.requestedLength))
-                data.respond(with: Data(count: Int(min(end - data.requestedOffset, 4 * 1024 * 1024))))
+            // Before it plays, the player reads two places far ahead, and waits for both: the
+            // declared end, to look for chunks after the data, and 1,667,301,376 (0x63610000) of a
+            // day-long stream. The end is a day of audio in, which no one reaches: silence
+            // answers it. The other is finished empty. Answered with silence, it was kept and
+            // would have played as 12 s of silence 79 minutes in, and the player's one range
+            // request stopped there; finished empty, the request runs to the declared end.
+            if data.requestedOffset >= declaredLength - Self.tailLength {
+                data.respond(with: Data(count: Int(declaredLength - data.requestedOffset)))
+                request.finishLoading()
+                return true
+            }
+            if data.requestedOffset > written + Self.farAhead {
                 request.finishLoading()
                 return true
             }
