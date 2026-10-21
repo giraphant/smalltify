@@ -90,7 +90,6 @@ final class AppStore {
     /// Spotify's own start page, as shelves of ids. One request fills all of it, so there is a
     /// single loading flag and a single error rather than one per section.
     private(set) var homeSections: [HomeSection] = []
-    private(set) var homeGreeting: String?
     var homeIsLoading = false
     var homeErrorMessage: String?
     var hasLoadedHome = false
@@ -607,9 +606,8 @@ final class AppStore {
     /// on every request — 31 sections in the same account differed in order and membership
     /// between two requests three minutes apart — so keeping an old shelf that no longer came
     /// back would show something Spotify has stopped recommending.
-    func setHomePage(sections: [HomeSection], greeting: String?) {
+    func setHomePage(sections: [HomeSection]) {
         homeSections = sections
-        homeGreeting = greeting
     }
 
     /// One range's top lists, after their entities are upserted.

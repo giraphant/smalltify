@@ -84,13 +84,14 @@ final class HomeService {
         await task.value
     }
 
-    /// Reloads the shelves and every top-content range already shown.
+    /// Reloads the shelves and every top-content range already shown, all at once.
     func refresh() async {
-        async let home: Void = loadHome(forceRefresh: true)
-        for range in store.topContent.keys {
-            await loadTopContent(range: range, forceRefresh: true)
+        await withTaskGroup { group in
+            group.addTask { await self.loadHome(forceRefresh: true) }
+            for range in store.topContent.keys {
+                group.addTask { await self.loadTopContent(range: range, forceRefresh: true) }
+            }
         }
-        await home
     }
 
     /// Loads one range's top tracks and artists, or joins the load already running. Does
@@ -130,7 +131,7 @@ final class HomeService {
             store.upsertAlbums(page.albums)
             store.upsertPlaylists(page.playlists)
             store.upsertArtists(page.artists)
-            store.setHomePage(sections: page.sections, greeting: page.greeting)
+            store.setHomePage(sections: page.sections)
 
             store.hasLoadedHome = true
         } catch is CancellationError {

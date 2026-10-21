@@ -137,7 +137,6 @@
 "home.top_artists" = "Deine Top-Künstler";
 "home.your_playlists" = "Deine Playlists";
 "home.show_all" = "Alle anzeigen";
-"home.playlist_by %@" = "von %@";
 "startpage.error" = "Startseite konnte nicht geladen werden";
 
 /* Sections */

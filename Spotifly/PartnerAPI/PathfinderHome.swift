@@ -49,12 +49,10 @@ nonisolated struct PathfinderHome: Decodable, Sendable {
     }
 
     let typename: String?
-    let greeting: Label?
     let sectionContainer: SectionContainer?
 
     private enum CodingKeys: String, CodingKey {
         case typename = "__typename"
-        case greeting
         case sectionContainer
     }
 

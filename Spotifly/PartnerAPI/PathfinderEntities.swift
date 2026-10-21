@@ -37,10 +37,9 @@ extension Playability {
 }
 
 extension Track {
-    /// Nil when the result carries no uri — an entity `AppStore` could not key. The id is the
-    /// one the uri names where the result sends none, as `userTopContent` does.
+    /// Nil when the result carries no id or uri — an entity `AppStore` could not key.
     init?(pathfinder track: PathfinderTrack) {
-        guard let uri = track.uri, let id = track.id ?? SpotifyURI.id(from: uri) else { return nil }
+        guard let id = track.id, let uri = track.uri else { return nil }
 
         self.init(
             id: id,
@@ -342,7 +341,6 @@ extension UserProfile {
 /// response rather than against a network. Main-actor isolated because the store entities it
 /// builds are — the decoded response it reads is not, and crosses on its own.
 struct HomePage {
-    var greeting: String?
     var sections: [HomeSection] = []
     var albums: [Album] = []
     var playlists: [Playlist] = []
@@ -357,8 +355,6 @@ struct HomePage {
     ///   Spotify does repeat an entity inside one section.
     /// - **A section with no uri is dropped**, since the uri is its identity across refreshes.
     init(pathfinder home: PathfinderHome) {
-        greeting = home.greeting?.transformedLabel
-
         for section in home.sections {
             guard let uri = section.uri else { continue }
 

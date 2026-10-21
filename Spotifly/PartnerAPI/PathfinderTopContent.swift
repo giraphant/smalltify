@@ -20,17 +20,9 @@ nonisolated enum TopContentRange: String, CaseIterable, Encodable, Sendable {
 
 /// `{ "data": { "me": { "profile": { "topArtists": …, "topTracks": … } } } }`
 nonisolated struct PathfinderTopContentResponse: Decodable, Sendable {
-    struct Page<Item: Decodable & Sendable>: Decodable, Sendable {
-        struct Entry: Decodable, Sendable {
-            let data: Item?
-        }
-
-        let items: [Entry]?
-    }
-
     struct Profile: Decodable, Sendable {
-        let topArtists: Page<PathfinderArtist>?
-        let topTracks: Page<PathfinderTrack>?
+        let topArtists: PathfinderItems<PathfinderArtist>?
+        let topTracks: PathfinderItems<PathfinderTrack>?
     }
 
     struct Me: Decodable, Sendable {
@@ -47,11 +39,11 @@ nonisolated struct PathfinderTopContentResponse: Decodable, Sendable {
 /// On the main actor, where the entities' initializers are.
 extension PathfinderTopContentResponse {
     var tracks: [Track] {
-        (data?.me?.profile?.topTracks?.items ?? []).compactMap { $0.data.flatMap(Track.init(pathfinder:)) }
+        (data?.me?.profile?.topTracks?.entities ?? []).compactMap(Track.init(pathfinder:))
     }
 
     var artists: [Artist] {
-        (data?.me?.profile?.topArtists?.items ?? []).compactMap { $0.data.flatMap(Artist.init(pathfinder:)) }
+        (data?.me?.profile?.topArtists?.entities ?? []).compactMap(Artist.init(pathfinder:))
     }
 }
 

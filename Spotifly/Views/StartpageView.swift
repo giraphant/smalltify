@@ -24,6 +24,8 @@ struct StartpageView: View {
 
     /// How many playlists the row shows; "Alle anzeigen" opens the rest.
     private static let playlistLimit = 9
+    /// The handoff's card side on this page; artists' are 130.
+    private static let cardSize: CGFloat = 150
 
     var body: some View {
         ScrollView {
@@ -39,9 +41,9 @@ struct StartpageView: View {
 
                 header("home.top_tracks") {
                     Picker("home.range", selection: $range) {
-                        Text("home.range.short").tag(TopContentRange.short)
-                        Text("home.range.mid").tag(TopContentRange.mid)
-                        Text("home.range.long").tag(TopContentRange.long)
+                        ForEach(TopContentRange.allCases, id: \.self) { range in
+                            Text(range.titleKey).tag(range)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -67,7 +69,7 @@ struct StartpageView: View {
                     }
                     cardRow {
                         ForEach(playlists) { playlist in
-                            PlaylistCard(playlist: playlist, subtitle: subtitle(for: playlist), size: 150)
+                            PlaylistCard(playlist: playlist, subtitle: subtitle(for: playlist), size: Self.cardSize)
                         }
                     }
                 }
@@ -81,13 +83,13 @@ struct StartpageView: View {
         .refreshable {
             await homeService.refresh()
         }
-        // The artists' range, whichever the tracks show, and the library's playlists, which
-        // otherwise load only when Playlists opens.
+        // The library's playlists, which otherwise load only when Playlists opens.
         .task {
-            async let playlists: Void? = try? playlistService.loadUserPlaylists()
-            await homeService.loadTopContent(range: .mid)
-            _ = await playlists
+            if !store.playlistsPagination.isLoaded {
+                try? await playlistService.loadUserPlaylists()
+            }
         }
+        // Tracks and artists, both over the picker's range.
         .task(id: range) {
             await homeService.loadTopContent(range: range)
         }
@@ -129,15 +131,15 @@ struct StartpageView: View {
         switch item {
         case let .album(id):
             if let album = store.albums[id] {
-                AlbumCard(album: album, size: 150)
+                AlbumCard(album: album, size: Self.cardSize)
             }
         case let .playlist(id):
             if let playlist = store.playlists[id] {
-                PlaylistCard(playlist: playlist, subtitle: subtitle(for: playlist), size: 150)
+                PlaylistCard(playlist: playlist, subtitle: subtitle(for: playlist), size: Self.cardSize)
             }
         case let .artist(id):
             if let artist = store.artists[id] {
-                ArtistCard(artist: artist, size: 150)
+                ArtistCard(artist: artist, size: Self.cardSize)
             }
         }
     }
@@ -149,7 +151,7 @@ struct StartpageView: View {
     }
 
     private var topArtists: [Artist] {
-        (store.topContent[.mid]?.artistIds ?? []).compactMap { store.artists[$0] }
+        (store.topContent[range]?.artistIds ?? []).compactMap { store.artists[$0] }
     }
 
     @ViewBuilder
@@ -190,13 +192,10 @@ struct StartpageView: View {
         store.userPlaylistIds.prefix(Self.playlistLimit).compactMap { store.playlists[$0] }
     }
 
-    /// The listener's own playlist by its track count, anyone else's by its owner, as the
-    /// handoff's cards say it. A count is known only once the tracks are: the library and the
-    /// home page name none, and record that as 0, so until then the owner stands in.
+    /// Its owner. The handoff gives the listener's own playlists their track count, which the
+    /// library and the home page do not name: they record an unknown count as 0.
     private func subtitle(for playlist: Playlist) -> String {
-        playlist.ownerId == store.userId && playlist.tracksLoaded
-            ? localizedNumberString("metadata.tracks", playlist.trackCount)
-            : String(localized: "home.playlist_by \(playlist.ownerName)")
+        localizedTextString("metadata.by_owner", playlist.ownerName)
     }
 
     // MARK: - Empty
@@ -271,4 +270,14 @@ private struct TopTrackRow: View {
 
     /// Built once rather than on every redraw, as `TrackRow`'s is.
     private static let artworkShape = AnyShape(.rect(cornerRadius: 4))
+}
+
+private extension TopContentRange {
+    var titleKey: LocalizedStringKey {
+        switch self {
+        case .short: "home.range.short"
+        case .mid: "home.range.mid"
+        case .long: "home.range.long"
+        }
+    }
 }
