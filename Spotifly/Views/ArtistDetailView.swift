@@ -16,7 +16,8 @@ struct ArtistDetailView: View {
 
     @State private var isLoadingAlbums = false
     @State private var failure: LoadFailure?
-    @State private var group: DiscographyGroup = .albums
+    /// The group picked, or nil for the first one with releases in it.
+    @State private var pickedGroup: DiscographyGroup?
     @State private var showUnfollowConfirmation = false
 
     /// The artist from the store — the only copy. Whatever a load puts there shows
@@ -56,12 +57,16 @@ struct ArtistDetailView: View {
     }
 
     private func artistContent(_ artist: Artist) -> some View {
-        ScrollView {
+        // Looked up once per redraw, for the picker's default and the grid.
+        let releases = store.albums(forArtist: artistId) ?? []
+        let group = pickedGroup ?? DiscographyGroup.allCases.first { group in releases.contains(where: group.contains) } ?? .albums
+
+        return ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header(artist)
 
                 SectionHeader(title: Text("artist.discography")) {
-                    Picker("artist.discography", selection: $group) {
+                    Picker("artist.discography", selection: Binding(get: { group }, set: { pickedGroup = $0 })) {
                         ForEach(DiscographyGroup.allCases, id: \.self) { group in
                             Text(group.title).tag(group)
                         }
@@ -75,10 +80,15 @@ struct ArtistDetailView: View {
                     ProgressView("loading.albums")
                         .frame(maxWidth: .infinity)
                         .padding()
-                } else if let failure {
+                } else if let failure, releases.isEmpty {
                     InlineLoadError(failure: failure) { await loadArtist() }
                 } else {
-                    releasesGrid
+                    // A failed follow or unfollow over the releases there are.
+                    if let failure {
+                        InlineLoadError(failure: failure) { await loadArtist() }
+                            .padding(.bottom, 8)
+                    }
+                    releasesGrid(releases.filter(group.contains))
                 }
             }
         }
@@ -86,9 +96,7 @@ struct ArtistDetailView: View {
 
     /// The chosen group's releases, or a line saying there are none.
     @ViewBuilder
-    private var releasesGrid: some View {
-        let releases = (store.albums(forArtist: artistId) ?? []).filter(group.contains)
-
+    private func releasesGrid(_ releases: [Album]) -> some View {
         if releases.isEmpty {
             Text("artist.discography.empty")
                 .foregroundStyle(.secondary)
@@ -161,7 +169,8 @@ struct ArtistDetailView: View {
 }
 
 /// The handoff's three groups of a discography. Spotify types a release `ALBUM`, `SINGLE`, `EP`
-/// or `COMPILATION` (measured for Green Day on 2026-10-21), and files EPs under singles.
+/// or `COMPILATION` (measured for Green Day on 2026-10-21), and files EPs under singles. A
+/// release of no type or another one counts as an album, so every release is in some group.
 private enum DiscographyGroup: CaseIterable {
     case albums
     case singles
@@ -169,7 +178,7 @@ private enum DiscographyGroup: CaseIterable {
 
     func contains(_ album: Album) -> Bool {
         switch self {
-        case .albums: album.albumType == "album"
+        case .albums: !Self.singles.contains(album) && !Self.compilations.contains(album)
         case .singles: album.albumType == "single" || album.albumType == "ep"
         case .compilations: album.albumType == "compilation"
         }
