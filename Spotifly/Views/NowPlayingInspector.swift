@@ -137,5 +137,8 @@ private struct UpNextRow: View {
                 .monospacedDigit()
         }
         .contentShape(.rect)
+        // Dimmed, with the reason, as in every other list.
+        .opacity(track.isPlayable ? 1 : 0.5)
+        .help(ifAny: track.unplayableMessage)
     }
 }
