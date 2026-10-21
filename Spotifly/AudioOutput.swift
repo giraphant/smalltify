@@ -356,6 +356,9 @@ private struct UncheckedTimebase: @unchecked Sendable {
 /// One item's bytes: a CAF header, then PCM as the output writes it, served to the player's
 /// resource loader from a window of what has been written.
 ///
+/// Kept as the chunks the pipeline pushed, dropped whole from the front: trimming one `Data`
+/// with `removeFirst` only re-slices it, and the allocation grew with the stream, 21 MB a minute.
+///
 /// Confined to `queue`, the loader's delegate queue: appends hop onto it, and the loader calls
 /// in on it. Requests for bytes not yet written wait for them.
 final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unchecked Sendable {
@@ -367,10 +370,10 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
     static let declaredFrames = Int64(AudioOutput.sampleRate * 86400)
     private static let declaredDataBytes = declaredFrames * Int64(AudioOutput.bytesPerFrame)
 
-    private let header: Data
-    private var storage = Data()
-    /// Stream offset of `storage`'s first byte.
-    private var storageStart: Int64 = 0
+    private let headerLength: Int64
+    /// What is kept of the stream, in the pieces it was written in, and the stream offset of each.
+    private var chunks: [Data] = []
+    private var offsets: [Int64] = []
     private var written: Int64 = 0
     private var pending: [AVAssetResourceLoadingRequest] = []
     private var closed = false
@@ -379,10 +382,10 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         self.generation = generation
         url = URL(string: "spotifly-stream://pcm/\(generation).caf")!
         queue = DispatchQueue(label: "PCMStream \(generation)")
-        header = Self.cafHeader(dataBytes: Self.declaredDataBytes)
+        let header = Self.cafHeader(dataBytes: Self.declaredDataBytes)
+        headerLength = Int64(header.count)
         super.init()
-        storage = header
-        written = Int64(header.count)
+        keep(header)
     }
 
     /// How close to the declared end a request must start to be the player's look at the end, and
@@ -391,14 +394,13 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
     private static let farAhead: Int64 = 256 * 1024 * 1024
 
     private var declaredLength: Int64 {
-        Int64(header.count) + Self.declaredDataBytes
+        headerLength + Self.declaredDataBytes
     }
 
     func append(_ samples: Data) {
         queue.async { [self] in
             guard !closed else { return }
-            storage.append(samples)
-            written += Int64(samples.count)
+            keep(samples)
             serve()
         }
     }
@@ -410,8 +412,15 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
                 request.finishLoading(with: CancellationError())
             }
             pending.removeAll()
-            storage = Data()
+            chunks.removeAll()
+            offsets.removeAll()
         }
+    }
+
+    private func keep(_ chunk: Data) {
+        chunks.append(chunk)
+        offsets.append(written)
+        written += Int64(chunk.count)
     }
 
     // MARK: AVAssetResourceLoaderDelegate
@@ -453,25 +462,20 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
     }
 
     /// Answers every waiting request with what has been written for it, finishes those that have
-    /// all they asked for, and lets go of bytes no request can still want.
+    /// all they asked for, and lets go of chunks no request can still want.
     private func serve() {
         pending.removeAll { request in
             guard !request.isFinished, !request.isCancelled, let data = request.dataRequest else { return true }
-            let offset = data.currentOffset
-            guard offset >= storageStart else {
-                debugLog("AudioOutput", "Stream \(generation): asked for \(offset), before the kept \(storageStart)")
+            guard let first = offsets.first, data.currentOffset >= first else {
+                debugLog("AudioOutput", "Stream \(generation): asked for \(data.currentOffset), before what is kept")
                 request.finishLoading(with: URLError(.dataNotAllowed))
                 return true
             }
             let end = data.requestsAllDataToEndOfResource
                 ? written
                 : min(written, data.requestedOffset + Int64(data.requestedLength))
-            if end > offset {
-                let from = storage.startIndex + Int(offset - storageStart)
-                data.respond(with: storage.subdata(in: from ..< storage.startIndex + Int(end - storageStart)))
-            }
-            let wanted = data.requestedOffset + Int64(data.requestedLength)
-            if !data.requestsAllDataToEndOfResource, data.currentOffset >= wanted {
+            respond(to: data, upTo: end)
+            if !data.requestsAllDataToEndOfResource, data.currentOffset >= data.requestedOffset + Int64(data.requestedLength) {
                 request.finishLoading()
                 return true
             }
@@ -480,14 +484,35 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         trim()
     }
 
+    /// Hands a request the kept bytes from where it is up to `end`, a chunk or part of one at a
+    /// time, without copying them first.
+    private func respond(to data: AVAssetResourceLoadingDataRequest, upTo end: Int64) {
+        // The chunk holding the request's offset: the last that starts at or before it.
+        var index = (offsets.lastIndex { $0 <= data.currentOffset }) ?? 0
+        while data.currentOffset < end, index < chunks.count {
+            let chunk = chunks[index]
+            let from = Int(data.currentOffset - offsets[index])
+            let to = Int(min(end, offsets[index] + Int64(chunk.count)) - offsets[index])
+            if from < to {
+                data.respond(with: chunk[(chunk.startIndex + from) ..< (chunk.startIndex + to)])
+            }
+            index += 1
+        }
+    }
+
     /// Keeps 8 MB behind the earliest offset a waiting request is at, about 24 s of audio, for a
-    /// player that asks again a little way back.
+    /// player that asks again a little way back, dropping whole chunks.
     private func trim() {
         let earliest = pending.compactMap { $0.dataRequest?.currentOffset }.min() ?? written
         let keepFrom = earliest - 8 * 1024 * 1024
-        guard keepFrom - storageStart > 16 * 1024 * 1024 else { return }
-        storage.removeFirst(Int(keepFrom - storageStart))
-        storageStart = keepFrom
+        var drop = 0
+        while drop + 1 < offsets.count, offsets[drop + 1] <= keepFrom {
+            drop += 1
+        }
+        if drop > 0 {
+            chunks.removeFirst(drop)
+            offsets.removeFirst(drop)
+        }
     }
 
     // MARK: CAF
