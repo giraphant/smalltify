@@ -315,6 +315,11 @@ enum SpotifyPlayer {
         Task { await LibrespotClient.shared.setShuffle(enabled) }
     }
 
+    /// Sets repeat on the local player.
+    static func setRepeat(_ mode: PlaybackQueue.RepeatMode) {
+        Task { await LibrespotClient.shared.setRepeat(mode) }
+    }
+
     /// Plays radio for a seed track.
     /// - Parameter trackUri: The Spotify track URI to use as seed
     static func playRadio(trackUri: String) async throws {
