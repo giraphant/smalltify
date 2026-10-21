@@ -40,7 +40,7 @@ which is all its gapless playback is. `AudioOutput` keeps that contract over an 
 
 - The player's item is a stream the output writes: a CAF of 44.1 kHz stereo Float32 PCM, served
   through an `AVAssetResourceLoader` delegate under a custom URL scheme, with a data chunk
-  declared a day long. **One item serves the session**: a `restart` (a load, a seek) is a held
+  declared a week long. **One item serves the session**: a `restart` (a load, a seek) is a held
   seek within it to the end of what is written, where the new audio begins, and plays once the
   seek is done. Between tracks the stream runs on, so a track change is the next sample.
 - Pacing: `enqueue` appends to the stream and returns once what is written ahead of the playhead
@@ -155,16 +155,38 @@ Found and fixed meanwhile:
   the seek is done; four quick seeks after it took 28–37 ms each, the playhead never behind the
   target.
 - **The far look-ahead**: finished empty, not with 4 MB of silence, which would have played 79
-  minutes in; the player's one range request then runs to the declared end, a day.
+  minutes in; the player's one range request then runs to the declared end.
 
 Not known:
 
 - Whether another app's audio stays off the HomePod, by ear: the microphone could not tell a
   3150 Hz tone from the music. The Mac's default output never changes, which is the evidence.
-- A session past a day of stream (a restart then begins a new stream, which on a receiver would
+- A session past a week of stream (a restart then begins a new stream, which on a receiver would
   not load), sleep and wake, a receiver lost mid-song.
 
 Codex found two, fixed: a failed item was only logged, so the decode waited on it forever and a
 restart sought within it (now reported to the pipeline as `.failed`, and replaced on the next
 restart); and Wiedergabe auf named the Mac's default output while Spotifly played on the HomePod
 (left out in this mode).
+
+### Review round: a leak, a week, cleanup
+
+- **The stream leaked**: trimmed with `Data.removeFirst`, which only re-slices, it kept every
+  byte written, 21 MB a minute. It now keeps the pieces the pipeline pushed and drops whole ones
+  behind the player. Footprint over a minute of playback after it: 192 MB flat. What still moves
+  is `AVPlayer`'s own HTTP cache, which fills to 32 MB and stays there, and large blocks the
+  allocator returns late.
+- **A day of gapless play ran off the stream's end** (Codex): only a load or a seek begins a new
+  stream. Declared a week long now; the player makes the same far read at 0x63610000, reads the
+  declared end, and is ready in 140 ms.
+- Cleanup: volume set on the player alone, one locked state for what the actor reads of it, no
+  run counters (the pipeline retires a decode before it starts another, and asserts it), no
+  log-only timing, a resume that does not count as a stall.
+
+Checked through a Connect handover from the web player, the Mac's screen locked (so on the LG
+display, and not by ear: its volume was at 6 %), against the item's clock: a gapless track change
+due at 20:14:38.66 came at 38.81 (one 250 ms tick); after a seek, 16.02 s of audio in 16.10 s;
+after a resume, 10.09 s in 10.08 s.
+
+Not rerun since the cleanup: the Küche HomePod, which needs the AirPlay picker and so an
+unlocked screen.
