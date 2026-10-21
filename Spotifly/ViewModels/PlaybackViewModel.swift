@@ -387,7 +387,8 @@ final class PlaybackViewModel {
         // to the account that just left, so building with it would put that account straight
         // back on Spotify Connect — and the lifecycle check inside `performInitialization`
         // would not catch it, because by then the bumped generation is the current one.
-        guard generationBeforeWaiting == lifecycleGeneration, force || !isInitialized else { return }
+        guard generationBeforeWaiting == lifecycleGeneration else { return }
+        guard force || !isInitialized else { return }
         // A run waited for that Spotify refused for want of Premium would be refused again;
         // Reconnect in Speakers, which forces, still tries.
         guard force || localPlayback != .needsPremium else { return }
@@ -985,14 +986,9 @@ final class PlaybackViewModel {
         )
     }
 
-    /// Steps repeat on, as Spotify's clients do: off, the context, the track, off again.
+    /// Steps repeat on to its next mode; see `RepeatMode.next`.
     func cycleRepeat() {
-        let target: PlaybackQueue.RepeatMode = switch repeatMode {
-        case .off: .context
-        case .context: .track
-        case .track: .off
-        }
-
+        let target = repeatMode.next
         sendTransportCommand(
             "cycleRepeat()",
             local: { SpotifyPlayer.setRepeat(target) },
@@ -1086,7 +1082,8 @@ final class PlaybackViewModel {
         // Seek command
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             Task { @MainActor in
-                guard let self, let seekEvent = event as? MPChangePlaybackPositionCommandEvent else { return }
+                guard let self else { return }
+                guard let seekEvent = event as? MPChangePlaybackPositionCommandEvent else { return }
                 let positionMs = UInt32(seekEvent.positionTime * 1000)
                 debugLog("PlaybackViewModel", "Media command: seek to \(positionMs)ms")
                 self.seek(to: positionMs)
@@ -1467,8 +1464,7 @@ final class PlaybackViewModel {
             isPlaying: state.isPlaying,
             durationMs: reportedDurationMs ?? (trackChanged ? 0 : trackDurationMs),
             shuffle: state.shuffle,
-            // A track's repeat wins: Spotify's clients send repeat-one with the context's on too.
-            repeatMode: state.repeatTrack ? .track : (state.repeatContext ? .context : .off),
+            repeatMode: .init(context: state.repeatContext, track: state.repeatTrack),
             canSkipNext: state.canSkipNext,
             canShuffle: state.canShuffle,
         )
