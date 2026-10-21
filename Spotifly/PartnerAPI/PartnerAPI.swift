@@ -149,34 +149,34 @@ nonisolated struct PartnerAPI: Sendable {
 
     // MARK: - Searches
 
-    func searchTracks(_ term: String, limit: Int = 30) async throws -> [PathfinderTrack] {
+    func searchTracks(_ term: String, offset: Int = 0, limit: Int = 30) async throws -> [PathfinderTrack] {
         let response: PathfinderResponse<PathfinderTrackResults> = try await query(
             .searchTracks,
-            variables: PathfinderSearchVariables(searchTerm: term, limit: limit),
+            variables: PathfinderSearchVariables(searchTerm: term, offset: offset, limit: limit),
         )
         return response.results?.tracksV2?.entities ?? []
     }
 
-    func searchAlbums(_ term: String, limit: Int = 30) async throws -> [PathfinderAlbum] {
+    func searchAlbums(_ term: String, offset: Int = 0, limit: Int = 30) async throws -> [PathfinderAlbum] {
         let response: PathfinderResponse<PathfinderAlbumResults> = try await query(
             .searchAlbums,
-            variables: PathfinderSearchVariables(searchTerm: term, limit: limit),
+            variables: PathfinderSearchVariables(searchTerm: term, offset: offset, limit: limit),
         )
         return response.results?.albumsV2?.entities ?? []
     }
 
-    func searchArtists(_ term: String, limit: Int = 30) async throws -> [PathfinderArtist] {
+    func searchArtists(_ term: String, offset: Int = 0, limit: Int = 30) async throws -> [PathfinderArtist] {
         let response: PathfinderResponse<PathfinderArtistResults> = try await query(
             .searchArtists,
-            variables: PathfinderSearchVariables(searchTerm: term, limit: limit),
+            variables: PathfinderSearchVariables(searchTerm: term, offset: offset, limit: limit),
         )
         return response.results?.artists?.entities ?? []
     }
 
-    func searchPlaylists(_ term: String, limit: Int = 30) async throws -> [PathfinderPlaylist] {
+    func searchPlaylists(_ term: String, offset: Int = 0, limit: Int = 30) async throws -> [PathfinderPlaylist] {
         let response: PathfinderResponse<PathfinderPlaylistResults> = try await query(
             .searchPlaylists,
-            variables: PathfinderSearchVariables(searchTerm: term, limit: limit),
+            variables: PathfinderSearchVariables(searchTerm: term, offset: offset, limit: limit),
         )
         return response.results?.playlists?.entities ?? []
     }

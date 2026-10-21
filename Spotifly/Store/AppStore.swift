@@ -581,6 +581,11 @@ final class AppStore {
         searchCacheEvictionRevision &+= 1
     }
 
+    /// Adds a further page of one scope to `query`'s results, if they are still kept.
+    func appendSearchResults(_ ids: [String], to scope: SearchScope, for query: String) {
+        searchResultsByQuery[query]?.append(ids, to: scope)
+    }
+
     /// Why the last search for `query` failed, where it was the last to fail.
     func searchFailure(for query: String) -> LoadFailure? {
         failedSearch?.query == query ? failedSearch?.failure : nil

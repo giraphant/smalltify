@@ -13,10 +13,26 @@ import Foundation
 final class SearchService {
     private let store: AppStore
     private let partner: PartnerAPI
+    private let defaults: UserDefaults
 
-    init(store: AppStore, partner: PartnerAPI = PartnerAPI()) {
+    /// The queries searched last, newest first, kept on this Mac only.
+    private(set) var recentSearches: [String]
+
+    /// How many recent searches are kept.
+    static let recentSearchesLimit = 10
+    private static let recentSearchesKey = "recentSearches"
+
+    /// How many results a further page of one scope asks for.
+    static let pageSize = 20
+
+    /// The scopes whose further page is loading, so a second press does not ask again.
+    private(set) var loadingMore: Set<SearchScope> = []
+
+    init(store: AppStore, partner: PartnerAPI = PartnerAPI(), defaults: UserDefaults = .standard) {
         self.store = store
         self.partner = partner
+        self.defaults = defaults
+        recentSearches = defaults.stringArray(forKey: Self.recentSearchesKey) ?? []
     }
 
     // MARK: - Search
@@ -31,11 +47,70 @@ final class SearchService {
 
         do {
             try await store.setSearchResults(partnerSearch(query: query), for: query)
+            remember(query)
         } catch {
             store.setSearchFailure(error, for: query)
         }
 
         store.searchIsLoading = false
+    }
+
+    // MARK: - More results
+
+    /// Loads the next page of one scope of `query`'s results and appends it.
+    func loadMore(query: String, scope: SearchScope) async {
+        guard scope != .all, !loadingMore.contains(scope),
+              let offset = store.searchResults(for: query)?.ids(for: scope).count
+        else { return }
+        loadingMore.insert(scope)
+        defer { loadingMore.remove(scope) }
+
+        do {
+            let ids: [String]
+            switch scope {
+            case .tracks:
+                let tracks = try await partner.searchTracks(query, offset: offset, limit: Self.pageSize).compactMap(Track.init(pathfinder:))
+                store.upsertTracks(tracks)
+                ids = tracks.map(\.id)
+            case .artists:
+                let artists = try await partner.searchArtists(query, offset: offset, limit: Self.pageSize).compactMap(Artist.init(pathfinder:))
+                store.upsertArtists(artists)
+                ids = artists.map(\.id)
+            case .albums:
+                let albums = try await partner.searchAlbums(query, offset: offset, limit: Self.pageSize).compactMap(Album.init(pathfinder:))
+                store.upsertAlbums(albums)
+                ids = albums.map(\.id)
+            case .playlists:
+                let playlists = try await partner.searchPlaylists(query, offset: offset, limit: Self.pageSize).compactMap(Playlist.init(pathfinder:))
+                store.upsertPlaylists(playlists)
+                ids = playlists.map(\.id)
+            case .all:
+                return
+            }
+            store.appendSearchResults(ids, to: scope, for: query)
+        } catch {
+            debugLog("SearchService", "More \(scope) for \(query) failed: \(error)")
+        }
+    }
+
+    // MARK: - Recent searches
+
+    /// Puts `query` first among the recent searches, once.
+    private func remember(_ query: String) {
+        recentSearches.removeAll { $0 == query }
+        recentSearches.insert(query, at: 0)
+        recentSearches = Array(recentSearches.prefix(Self.recentSearchesLimit))
+        defaults.set(recentSearches, forKey: Self.recentSearchesKey)
+    }
+
+    func removeRecentSearch(_ query: String) {
+        recentSearches.removeAll { $0 == query }
+        defaults.set(recentSearches, forKey: Self.recentSearchesKey)
+    }
+
+    func clearRecentSearches() {
+        recentSearches = []
+        defaults.removeObject(forKey: Self.recentSearchesKey)
     }
 
     /// The search field was emptied. A failure is about the query that was typed, so it goes

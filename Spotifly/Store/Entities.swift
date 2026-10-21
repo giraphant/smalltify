@@ -399,10 +399,44 @@ enum TrackProvider: String, Codable {
 /// Each list is deduplicated: relinking can give two track results one market id (`AGENTS.md`,
 /// "Track identity is the market id"), and the page keys its rows by id.
 struct SearchResults: Encodable {
-    let albumIds: [String]
-    let artistIds: [String]
-    let playlistIds: [String]
-    let trackIds: [String]
+    private(set) var albumIds: [String]
+    private(set) var artistIds: [String]
+    private(set) var playlistIds: [String]
+    private(set) var trackIds: [String]
+    /// The scopes a further page found nothing more in, whose "Mehr laden" goes.
+    private(set) var exhaustedScopes: Set<SearchScope> = []
+
+    /// One scope's ids, in the order found.
+    func ids(for scope: SearchScope) -> [String] {
+        switch scope {
+        case .tracks: trackIds
+        case .artists: artistIds
+        case .albums: albumIds
+        case .playlists: playlistIds
+        case .all: []
+        }
+    }
+
+    /// Appends a further page of one scope, leaving out ids already listed. A page that adds
+    /// nothing marks the scope exhausted.
+    mutating func append(_ ids: [String], to scope: SearchScope) {
+        let known = Set(self.ids(for: scope))
+        let new = ids.uniqued().filter { !known.contains($0) }
+        if new.isEmpty {
+            exhaustedScopes.insert(scope)
+        }
+        switch scope {
+        case .tracks: trackIds += new
+        case .artists: artistIds += new
+        case .albums: albumIds += new
+        case .playlists: playlistIds += new
+        case .all: break
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case albumIds, artistIds, playlistIds, trackIds
+    }
 
     init(albums: [Album], artists: [Artist], playlists: [Playlist], tracks: [Track]) {
         albumIds = albums.map(\.id).uniqued()
