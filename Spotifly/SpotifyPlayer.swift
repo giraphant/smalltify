@@ -405,16 +405,13 @@ enum SpotifyPlayer {
             rawValue
         }
 
-        var displayName: String {
+        /// The rate in kbit/s, which the settings name it by.
+        var kilobitsPerSecond: Int {
             switch self {
-            case .low: "Low (96 kbps)"
-            case .normal: "Normal (160 kbps)"
-            case .high: "High (320 kbps)"
+            case .low: 96
+            case .normal: 160
+            case .high: 320
             }
-        }
-
-        var isDefault: Bool {
-            self == .normal
         }
     }
 
