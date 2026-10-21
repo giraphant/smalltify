@@ -67,6 +67,9 @@ actor StreamingPlayerSink: AudioSink {
             if Task.isCancelled || generation != self.generation {
                 return .flushed
             }
+            if output.hasFailed {
+                return .failed
+            }
             let played = playedFrames
             if played != lastPlayhead.frames {
                 lastPlayhead = (played, .now)
@@ -85,7 +88,8 @@ actor StreamingPlayerSink: AudioSink {
 
     func restart(paused: Bool) async {
         generation += 1
-        if stream != nil, streamFrames < Self.streamCapacity {
+        // A failed item plays nothing more, so it is replaced, as a full stream is.
+        if stream != nil, streamFrames < Self.streamCapacity, !output.hasFailed {
             origin.withLock { $0 = streamFrames }
             await output.seek(toFrame: streamFrames, paused: paused)
             return
@@ -150,6 +154,8 @@ final class StreamingPlayerOutput {
     /// sink's actor.
     private nonisolated let waiting = Mutex(false)
     private nonisolated let playing = Mutex(false)
+    /// Whether the item has failed, after which it plays nothing more.
+    private nonisolated let failed = Mutex(false)
 
     private let playerObservation: NSKeyValueObservation
     private var itemObservation: NSKeyValueObservation?
@@ -189,9 +195,14 @@ final class StreamingPlayerOutput {
         playing.withLock { $0 }
     }
 
+    nonisolated var hasFailed: Bool {
+        failed.withLock { $0 }
+    }
+
     func play(_ stream: PCMStream, paused: Bool, volume: Float) {
         self.stream = stream
         timebase.withLock { $0 = nil }
+        failed.withLock { $0 = false }
         restartedAt = .now
 
         let asset = AVURLAsset(url: stream.url)
@@ -270,6 +281,7 @@ final class StreamingPlayerOutput {
             timebase.withLock { $0 = itemTimebase?.timebase }
             debugLog("PlayerSink", "Stream \(generation): ready after \(elapsedMs()) ms")
         case .failed:
+            failed.withLock { $0 = true }
             debugLog("PlayerSink", "Stream \(generation): failed: \(error ?? "?")")
         default:
             break
