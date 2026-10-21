@@ -1,6 +1,7 @@
 # Redesign: the player bar
 
-Status: **Open**, planned 2026-10-21. Second of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #206. Second of the stacked redesign PRs. Repeat on a mirrored
+track with nothing active joins `plans/open/shuffle-and-queue-on-a-mirrored-track.md`
 Components: `Spotifly/Views/NowPlayingBarView.swift`, `Spotifly/ViewModels/PlaybackViewModel.swift`,
 `Spotifly/SpotifyPlayer.swift`, `Spotifly/PartnerAPI/ConnectState.swift`, `Spotifly/SpotiflyApp.swift`,
 `Spotifly/*.lproj/Localizable.strings`
@@ -77,3 +78,22 @@ bar overlays the content region, and the result is the same floating capsule.
   640 pt. Cycle repeat while this Mac plays and read the `PlaybackState` flags back; with the
   web player in Chrome active, cycle repeat from the bar and see the web player's own repeat
   button follow. Drag the inline volume. The AirPlay button opens Wiedergabe auf.
+
+### Result
+
+- The web player's repeat button, captured in Chrome while Spotifly played: all is
+  `{repeating_context: true, repeating_track: false}`, one is **both true**, off both false.
+  Those three bodies are the test's fixture (`repeat is the set_options the web player sends`).
+- Live: on this Mac the bar cycles all → one → off and follows the player's state; with the
+  web player active, the bar's repeat moved the web player's own button (it then offered
+  "1 wiederholen aktivieren", i.e. it was on all). The volume drops out under 680 pt, the mini
+  player (View → Mini-Player) lays out the whole bar.
+- Reviews: `/simplify` moved the time and seek slider onto one timeline in a view of their own,
+  made the volume its own view and the width a tier, and put repeat's two-flag rule and its
+  order in `RepeatMode`. `/code-review` found the repeat button enabled on a radio, which
+  refuses it; it now greys from `canRepeat`, read from the same restrictions as `canShuffle`.
+  Codex then found that this also greyed repeat-one carried into a radio, whose next step, off,
+  is allowed: only a step from off is greyed now. Its second finding, repeat on a mirrored
+  track, is shuffle's open gap and is recorded there.
+- Not seen live: a radio's greyed repeat button, which follows the same restrictions shuffle
+  does.
