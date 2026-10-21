@@ -27,7 +27,7 @@ actor AudioPipeline {
     /// replaces the socket, leaves the pipeline as it is.
     private let audioKeyProvider: AudioKeyProvider
     private let spclient: SPClient?
-    private let sink: AudioRenderer
+    private let sink: any AudioSink
 
     // MARK: - Events
 
@@ -149,7 +149,7 @@ actor AudioPipeline {
 
     // MARK: - Initialization
 
-    init(audioKeyProvider: AudioKeyProvider, spclient: SPClient?, sink: AudioRenderer) {
+    init(audioKeyProvider: AudioKeyProvider, spclient: SPClient?, sink: any AudioSink) {
         self.audioKeyProvider = audioKeyProvider
         self.spclient = spclient
         self.sink = sink

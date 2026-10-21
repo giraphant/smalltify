@@ -23,7 +23,7 @@ import Synchronization
 ///
 /// An actor because the renderer and its receiver are not `Sendable`. The
 /// synchronizer is, which is what lets the playhead be read without awaiting.
-actor AudioRenderer {
+actor AudioRenderer: AudioSink {
     nonisolated static let sampleRate = 44100
     nonisolated static let channelCount = 2
 
@@ -80,17 +80,7 @@ actor AudioRenderer {
 
     // MARK: - Feeding
 
-    /// What became of a buffer handed to `enqueue`.
-    enum Enqueued {
-        case accepted
-        /// Discarded by a flush, or the caller's task was cancelled.
-        case flushed
-        /// The output changed under the renderer — another device, AirPlay —
-        /// and it dropped what it had queued. The caller has to fill it again
-        /// from the playhead.
-        case outputChanged
-        case failed
-    }
+    typealias Enqueued = AudioSinkEnqueued
 
     /// Queues `frames` interleaved frames, suspending until the renderer wants
     /// them. The first buffer after a flush plays at clock time zero, and each
