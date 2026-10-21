@@ -10,7 +10,6 @@ import SwiftUI
 
 struct NowPlayingBarView: View {
     @Environment(AppStore.self) private var store
-    @Environment(PlayerModel.self) private var player
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(TrackService.self) private var trackService
     @Environment(\.displayScale) private var displayScale
@@ -20,11 +19,11 @@ struct NowPlayingBarView: View {
     @State private var cachedAlbumArtImage: Image?
     private let network = NetworkMonitor.shared
     @State private var cachedAlbumArtURL: String?
-    @State private var isHoveringSeekBar = false
     @State private var showNewPlaylistDialog = false
     @State private var showPlaylistAddedSuccess = false
-    /// The bar's own width, which decides what fits.
-    @State private var barWidth: CGFloat = Self.maxBarWidth
+    /// What the bar's own width leaves room for. A tier rather than the width, so a resize
+    /// redraws the bar only when it crosses one.
+    @State private var fit = Fit.everything
 
     @State private var showFullErrorMessage = false
 
@@ -33,13 +32,20 @@ struct NowPlayingBarView: View {
         playbackViewModel.currentTrackUri != nil
     }
 
-    // The capsule is `min(780, container − 40)` wide and 64 high, 14 above the window's edge.
-    private static let maxBarWidth: CGFloat = 780
+    static let maxBarWidth: CGFloat = 780
     private static let barHeight: CGFloat = 64
     private static let barBottomPadding: CGFloat = 14
-    /// Under these widths the volume, then the time, make room for the title.
-    private static let volumeMinBarWidth: CGFloat = 680
-    private static let timeMinBarWidth: CGFloat = 640
+
+    /// Under 680 pt the volume, then under 640 pt the time, make room for the title.
+    private nonisolated enum Fit: Equatable {
+        case everything
+        case noVolume
+        case noTime
+
+        init(width: CGFloat) {
+            self = width >= 680 ? .everything : (width >= 640 ? .noVolume : .noTime)
+        }
+    }
 
     /// The room a scrolling page leaves under its end, which the bar floats over, with 20 to spare.
     static let contentClearance = barHeight + barBottomPadding + 20
@@ -52,7 +58,7 @@ struct NowPlayingBarView: View {
         playerLayout
             .frame(height: isMini ? nil : Self.barHeight)
             .frame(maxWidth: isMini ? .infinity : Self.maxBarWidth, maxHeight: isMini ? .infinity : nil)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+            .onGeometryChange(for: Fit.self) { Fit(width: $0.size.width) } action: { fit = $0 }
             .modifier(NowPlayingBarBackground(isMiniPlayerMode: isMini))
             .padding(.horizontal, isMini ? 0 : 20)
             .padding(.bottom, isMini ? 0 : Self.barBottomPadding)
@@ -79,18 +85,7 @@ struct NowPlayingBarView: View {
             HStack(spacing: 10) {
                 albumArt(size: 40)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        trackInfo
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        if barWidth >= Self.timeMinBarWidth {
-                            timeLabel
-                        }
-                    }
-
-                    seekSlider
-                }
+                TrackProgress(showsTime: fit != .noTime, info: trackInfo)
             }
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity)
@@ -115,16 +110,14 @@ struct NowPlayingBarView: View {
             }
             .named("now_playing.playing_on")
 
-            if barWidth >= Self.volumeMinBarWidth {
-                volumeControl
+            if fit == .everything {
+                VolumeControl()
             }
 
             // Its only way back to the full window that is not in a menu.
             if isMini {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        windowState.toggleMiniPlayerMode()
-                    }
+                    windowState.toggleMiniPlayerMode()
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                 }
@@ -314,51 +307,6 @@ struct NowPlayingBarView: View {
         }
     }
 
-    /// Current playback position (interpolated for smooth display)
-    private var currentPositionMs: UInt32 {
-        playbackViewModel.interpolatedPositionMs
-    }
-
-    /// The position and the length, "m:ss / m:ss". It ticks once a second, and not while
-    /// nothing plays: each tick costs the main thread ~5 ms of SwiftUI update, all of the app's
-    /// CPU when idle. A seek or a new position still redraws it, through the view model.
-    private var timeLabel: some View {
-        TimelineView(.animation(minimumInterval: 1.0, paused: !playbackViewModel.isPlaying)) { _ in
-            Text(verbatim: "\(formatTrackTime(milliseconds: Int(currentPositionMs))) / \(formatTrackTime(milliseconds: Int(playbackViewModel.displayedDurationMs ?? 0)))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .fixedSize()
-        }
-    }
-
-    private var seekSlider: some View {
-        // 10 FPS under the pointer, where a drag wants it, 1 FPS otherwise; paused while nothing
-        // plays, as `timeLabel` is.
-        TimelineView(.animation(minimumInterval: isHoveringSeekBar ? 0.1 : 1.0, paused: !playbackViewModel.isPlaying)) { _ in
-            // The length Control Center shows too, 0 while none is known.
-            let durationMs = playbackViewModel.displayedDurationMs ?? 0
-            Slider(
-                value: Binding(
-                    get: { Double(currentPositionMs) },
-                    set: { newValue in
-                        playbackViewModel.seek(to: UInt32(newValue))
-                    },
-                ),
-                in: 0 ... Double(max(durationMs, 1)),
-            )
-            .controlSize(.mini)
-            // Its value is milliseconds, which accessibility would read out as they are.
-            .accessibilityLabel("now_playing.position")
-            .accessibilityValue(Text("now_playing.position_value \(formatTrackTime(milliseconds: Int(currentPositionMs))) \(formatTrackTime(milliseconds: Int(durationMs)))"))
-            .onHover { hovering in
-                isHoveringSeekBar = hovering
-            }
-        }
-        .frame(height: 10)
-    }
-
     /// Whether the current track is favorited (from global store)
     private var isCurrentTrackFavorited: Bool {
         guard let trackId = playbackViewModel.currentTrackId else { return false }
@@ -411,52 +359,6 @@ struct NowPlayingBarView: View {
         await trackService.ensureFavoriteStatuses(trackIds: [trackId])
     }
 
-    /// The slider's value, 0–100; see `PlaybackViewModel.sliderVolume`.
-    private var currentVolume: Double {
-        playbackViewModel.sliderVolume * 100
-    }
-
-    private var volumeIconName: String {
-        if currentVolume == 0 {
-            "speaker.fill"
-        } else if currentVolume < 50 {
-            "speaker.wave.1.fill"
-        } else {
-            "speaker.wave.3.fill"
-        }
-    }
-
-    private var volumeRefused: Bool {
-        playbackViewModel.sliderRefused
-    }
-
-    /// The icon and a 72 pt slider. A device that controls its own volume greys it, and says so
-    /// as the tooltip: a greyed-out slider says "not now", not that the device is the reason.
-    private var volumeControl: some View {
-        HStack(spacing: 4) {
-            Image(systemName: volumeIconName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-                .accessibilityHidden(true)
-
-            Slider(
-                value: Binding(
-                    get: { currentVolume },
-                    set: { playbackViewModel.setVolumeFromSlider($0 / 100) },
-                ),
-                in: 0 ... 100,
-            )
-            .controlSize(.small)
-            .frame(width: 72)
-            .disabled(volumeRefused)
-            .accessibilityLabel("volume.title")
-            .accessibilityValue(Text(currentVolume / 100, format: .percent.precision(.fractionLength(0))))
-        }
-        .padding(.horizontal, 4)
-        .help(volumeRefused ? Text("volume.device_controls_itself \(player.activeDevice?.name ?? "")") : Text("volume.title"))
-    }
-
     @ViewBuilder
     private var trackMenu: some View {
         if let track = playbackViewModel.currentTrack {
@@ -491,7 +393,7 @@ struct NowPlayingBarView: View {
     }
 
     private func exitMiniPlayerIfNeeded() {
-        if windowState.isMiniPlayerMode {
+        if isMini {
             windowState.toggleMiniPlayerMode()
         }
     }
@@ -502,6 +404,101 @@ struct NowPlayingBarView: View {
             try? await Task.sleep(for: .seconds(2))
             showPlaylistAddedSuccess = false
         }
+    }
+}
+
+// MARK: - Progress
+
+/// The title row with the time beside it, and the seek slider under it, on one timeline: 10 FPS
+/// under the pointer, where a drag wants it, once a second otherwise, and paused while nothing
+/// plays, since each tick costs the main thread ~5 ms of SwiftUI update, all of the app's CPU
+/// when idle. A seek or a new position still redraws it, through the view model. A view of its
+/// own, so the ticks and the hover redraw this alone and not the bar.
+private struct TrackProgress<Info: View>: View {
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    let showsTime: Bool
+    let info: Info
+
+    @State private var isHovering = false
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: isHovering ? 0.1 : 1.0, paused: !playbackViewModel.isPlaying)) { _ in
+            let positionMs = playbackViewModel.interpolatedPositionMs
+            // The length Control Center shows too, 0 while none is known.
+            let durationMs = playbackViewModel.displayedDurationMs ?? 0
+            let position = formatTrackTime(milliseconds: Int(positionMs))
+            let duration = formatTrackTime(milliseconds: Int(durationMs))
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    info
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if showsTime {
+                        Text(verbatim: "\(position) / \(duration)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { Double(positionMs) },
+                        set: { playbackViewModel.seek(to: UInt32($0)) },
+                    ),
+                    in: 0 ... Double(max(durationMs, 1)),
+                )
+                .controlSize(.mini)
+                .frame(height: 10)
+                // Its value is milliseconds, which accessibility would read out as they are.
+                .accessibilityLabel("now_playing.position")
+                .accessibilityValue(Text("now_playing.position_value \(position) \(duration)"))
+                .onHover { isHovering = $0 }
+            }
+        }
+    }
+}
+
+// MARK: - Volume
+
+/// The icon and a 72 pt slider: what `PlaybackViewModel.sliderVolume` shows, this Mac's or the
+/// active device's. A device that controls its own volume greys it, and says so as the tooltip:
+/// a greyed-out slider says "not now", not that the device is the reason. A view of its own, so
+/// a drag or a device's report redraws this alone and not the bar.
+private struct VolumeControl: View {
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+    @Environment(PlayerModel.self) private var player
+
+    var body: some View {
+        let volume = playbackViewModel.sliderVolume * 100
+        let refused = playbackViewModel.sliderRefused
+
+        HStack(spacing: 4) {
+            Image(systemName: volume == 0 ? "speaker.fill" : (volume < 50 ? "speaker.wave.1.fill" : "speaker.wave.3.fill"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+
+            Slider(
+                value: Binding(
+                    get: { volume },
+                    set: { playbackViewModel.setVolumeFromSlider($0 / 100) },
+                ),
+                in: 0 ... 100,
+            )
+            .controlSize(.small)
+            .frame(width: 72)
+            .disabled(refused)
+            .accessibilityLabel("volume.title")
+            .accessibilityValue(Text(volume / 100, format: .percent.precision(.fractionLength(0))))
+        }
+        .padding(.horizontal, 4)
+        .help(refused ? Text("volume.device_controls_itself \(player.activeDevice?.name ?? "")") : Text("volume.title"))
     }
 }
 

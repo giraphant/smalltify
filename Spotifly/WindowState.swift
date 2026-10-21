@@ -17,7 +17,7 @@ final class WindowState {
     private var savedWindowFrame: NSRect?
 
     /// Wide enough for the whole bar, volume and time included.
-    static let miniPlayerSize = NSSize(width: 780, height: 96)
+    static let miniPlayerSize = NSSize(width: NowPlayingBarView.maxBarWidth, height: 96)
     static let defaultSize = NSSize(width: 800, height: 600)
 
     func toggleMiniPlayerMode() {
@@ -62,7 +62,8 @@ final class WindowState {
     }
 
     func exitMiniPlayerMode(window preferredWindow: NSWindow? = nil) {
-        guard isMiniPlayerMode, let window = resolvedWindow(preferred: preferredWindow) else { return }
+        guard isMiniPlayerMode else { return }
+        guard let window = resolvedWindow(preferred: preferredWindow) else { return }
 
         // Restore resizable style
         window.styleMask.insert(.resizable)
