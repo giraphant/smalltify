@@ -92,7 +92,13 @@ struct NowPlayingInspector: View {
                     ForEach(upNextRows.enumerated().map { (id: $0.element.entry.uid ?? String($0.offset), next: $0.element) }, id: \.id) { item in
                         let next = item.next
                         Button {
-                            playbackViewModel.play(queueRow: next.row)
+                            // One Spotify will not play starts nothing, as in `TrackRow`: the skip
+                            // would step over it and interrupt what plays for a later track.
+                            if let message = next.track.unplayableMessage {
+                                playbackViewModel.errorMessage = message
+                            } else {
+                                playbackViewModel.play(queueRow: next.row)
+                            }
                         } label: {
                             UpNextRow(track: next.track)
                         }
