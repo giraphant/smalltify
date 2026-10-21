@@ -95,6 +95,15 @@ final class AppStore {
     var homeErrorMessage: String?
     var hasLoadedHome = false
 
+    /// The start page's "Zuletzt gehört": the home shelf of the contexts last played.
+    var recentlyPlayedSection: HomeSection? {
+        homeSections.first(where: \.isRecentlyPlayed)
+    }
+
+    /// The listener's top tracks and artists, by time range, as ids. A range is absent until it
+    /// has been loaded, and replaced whole by each load.
+    private(set) var topContent: [TopContentRange: TopContent] = [:]
+
     // MARK: - User Profile
 
     /// Current user's profile (singleton)
@@ -601,6 +610,11 @@ final class AppStore {
     func setHomePage(sections: [HomeSection], greeting: String?) {
         homeSections = sections
         homeGreeting = greeting
+    }
+
+    /// One range's top lists, after their entities are upserted.
+    func setTopContent(_ content: TopContent, for range: TopContentRange) {
+        topContent[range] = content
     }
 
     // MARK: - User Profile Actions
