@@ -74,29 +74,29 @@ final class SearchService {
     }
 
     /// One page of one kind: searched, its entities upserted, and their ids returned with how
-    /// many results Spotify sent, which an unreadable one makes more than the ids.
+    /// many rows Spotify sent, unreadable ones included, which is what paging counts.
     private func fetch(_ kind: SearchKind, query: String, offset: Int) async throws -> (ids: [String], sent: Int) {
         switch kind {
         case .tracks:
             let found = try await partner.searchTracks(query, offset: offset, limit: Self.pageSize)
-            let tracks = found.compactMap(Track.init(pathfinder:))
+            let tracks = found.entities.compactMap(Track.init(pathfinder:))
             store.upsertTracks(tracks)
-            return (tracks.map(\.id), found.count)
+            return (tracks.map(\.id), found.sent)
         case .albums:
             let found = try await partner.searchAlbums(query, offset: offset, limit: Self.pageSize)
-            let albums = found.compactMap(Album.init(pathfinder:))
+            let albums = found.entities.compactMap(Album.init(pathfinder:))
             store.upsertAlbums(albums)
-            return (albums.map(\.id), found.count)
+            return (albums.map(\.id), found.sent)
         case .artists:
             let found = try await partner.searchArtists(query, offset: offset, limit: Self.pageSize)
-            let artists = found.compactMap(Artist.init(pathfinder:))
+            let artists = found.entities.compactMap(Artist.init(pathfinder:))
             store.upsertArtists(artists)
-            return (artists.map(\.id), found.count)
+            return (artists.map(\.id), found.sent)
         case .playlists:
             let found = try await partner.searchPlaylists(query, offset: offset, limit: Self.pageSize)
-            let playlists = found.compactMap(Playlist.init(pathfinder:))
+            let playlists = found.entities.compactMap(Playlist.init(pathfinder:))
             store.upsertPlaylists(playlists)
-            return (playlists.map(\.id), found.count)
+            return (playlists.map(\.id), found.sent)
         }
     }
 
