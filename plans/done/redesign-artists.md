@@ -1,6 +1,6 @@
 # Redesign: Künstler
 
-Status: **Open**, planned 2026-10-21. Tenth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #214. Tenth of the stacked redesign PRs
 Components: `Spotifly/Views/ArtistDetailView.swift`, `Spotifly/Views/LoggedInToolbars.swift`,
 `Spotifly/Views/Components/AlbumCard.swift`, `Spotifly/*.lproj/Localizable.strings`
 Found: 2026-10-21, `design_handoff_spotifly_macos/README.md` ("Playlists / Alben / Künstler"),
@@ -38,7 +38,8 @@ are not shown either: neither artist operation the app reads returns genres.
   its confirmation, and the page stays, as an album's does.
 - "Diskografie" (`SectionHeader`) with a segmented `Picker`: Alben, Singles & EPs (singles and
   EPs), Compilations; a `LazyVGrid` (adaptive, min 150 pt) of the shared `AlbumCard` with the
-  release year as its subtitle. A group with nothing in it says so.
+  release year as its subtitle. A group with nothing in it says so. A release of no type or an
+  unknown one counts as an album, and the page opens on the first group with releases.
 
 ### Toolbar
 
@@ -51,3 +52,20 @@ albums and playlists use, which learns to leave out "Als Nächstes spielen". The
 - Build, unit tests.
 - Run the Debug build: an artist with all three kinds (Green Day), switch the groups, open a
   release, Abspielen (then pause), follow and unfollow an artist not followed before, Share.
+
+### Result
+
+- Live: Green Day (not followed) shows the header and "Diskografie", Alben by default; the seven
+  compilations under Compilations, as the web player counts them. Folgen made it "Folge ich",
+  and unfollowing, through the confirmation, put it back, the page staying. Abspielen played the
+  artist's context on this Mac ("Boulevard of Broken Dreams"), paused at once. The toolbar
+  menu: Wiedergeben, Folgen, Link kopieren.
+- `/simplify`: the library toggle, the play button and the header art are shared with the album
+  and playlist pages (`LibraryToggleButton`, `PlayAndShuffleButtons` without shuffle,
+  `Artwork.detailHeader(shape:)`); `CardGrid` beside `CardRow`; `Album.releaseYear`; the unused
+  `Artwork.header`, `ToolbarActionButton.role` and `ShareToolbarButton` removed.
+- `/code-review`: releases of no type were in no group, an artist with only singles opened on
+  an empty Alben, and a failed follow hid the loaded discography. Codex: a start page entry,
+  which names no type, replaced a discography's entry, so singles moved to Alben; the store now
+  keeps a type and date a summary does not name.
+- Left as found: the toolbar's Follow drops its error (`try?`), as the playlist toolbar's does.
