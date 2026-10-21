@@ -95,8 +95,7 @@ struct AlbumDetailView: View {
         let isSaved = store.userAlbumIds.contains(albumId)
 
         return DetailHeader(
-            kind: album.releaseDate.map { String(localized: "detail.kind.album \(String($0.prefix(4)))") }
-                ?? String(localized: "detail.kind.album"),
+            kind: releaseYear(of: album).map { String(localized: "detail.kind.album \($0)") } ?? String(localized: "detail.kind.album"),
             title: album.name,
         ) {
             Artwork.detailHeader(album.images, symbol: "music.note")
@@ -162,6 +161,11 @@ struct AlbumDetailView: View {
         }
 
         isLoading = false
+    }
+
+    /// The year a release date starts with, which Spotify gives as a year, a month or a day.
+    private func releaseYear(of album: Album) -> String? {
+        album.releaseDate.map { String($0.prefix(4)) }.flatMap { Int($0) != nil ? $0 : nil }
     }
 
     private func removeFromLibrary() {
