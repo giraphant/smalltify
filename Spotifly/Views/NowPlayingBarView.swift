@@ -20,11 +20,11 @@ struct NowPlayingBarView: View {
     @State private var cachedAlbumArtImage: Image?
     private let network = NetworkMonitor.shared
     @State private var cachedAlbumArtURL: String?
-    @State private var showVolumePopover = false
-    @State private var showAlbumArtMenu = false
     @State private var isHoveringSeekBar = false
     @State private var showNewPlaylistDialog = false
     @State private var showPlaylistAddedSuccess = false
+    /// The bar's own width, which decides what fits.
+    @State private var barWidth: CGFloat = Self.maxBarWidth
 
     @State private var showFullErrorMessage = false
 
@@ -33,21 +33,29 @@ struct NowPlayingBarView: View {
         playbackViewModel.currentTrackUri != nil
     }
 
-    // Fixed dimensions for the now playing bar (in points)
-    private static let barWidth: CGFloat = 700
-    private static let barHeight: CGFloat = 60
-    private static let barBottomPadding: CGFloat = 20
+    // The capsule is `min(780, container − 40)` wide and 64 high, 14 above the window's edge.
+    private static let maxBarWidth: CGFloat = 780
+    private static let barHeight: CGFloat = 64
+    private static let barBottomPadding: CGFloat = 14
+    /// Under these widths the volume, then the time, make room for the title.
+    private static let volumeMinBarWidth: CGFloat = 680
+    private static let timeMinBarWidth: CGFloat = 640
 
     /// The room a scrolling page leaves under its end, which the bar floats over, with 20 to spare.
     static let contentClearance = barHeight + barBottomPadding + 20
 
+    private var isMini: Bool {
+        windowState.isMiniPlayerMode
+    }
+
     var body: some View {
         playerLayout
-            .frame(width: windowState.isMiniPlayerMode ? nil : Self.barWidth, height: windowState.isMiniPlayerMode ? nil : Self.barHeight)
-            .frame(maxWidth: windowState.isMiniPlayerMode ? .infinity : nil, maxHeight: windowState.isMiniPlayerMode ? .infinity : nil)
-            .modifier(NowPlayingBarBackground(isMiniPlayerMode: windowState.isMiniPlayerMode))
-            .padding([.leading, .trailing], windowState.isMiniPlayerMode ? 0 : 40)
-            .padding([.bottom], windowState.isMiniPlayerMode ? 0 : Self.barBottomPadding)
+            .frame(height: isMini ? nil : Self.barHeight)
+            .frame(maxWidth: isMini ? .infinity : Self.maxBarWidth, maxHeight: isMini ? .infinity : nil)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+            .modifier(NowPlayingBarBackground(isMiniPlayerMode: isMini))
+            .padding(.horizontal, isMini ? 0 : 20)
+            .padding(.bottom, isMini ? 0 : Self.barBottomPadding)
             .newPlaylistPrompt(
                 isPresented: $showNewPlaylistDialog,
                 trackId: playbackViewModel.currentTrack?.id,
@@ -63,96 +71,70 @@ struct NowPlayingBarView: View {
 
     // MARK: - Player Layout
 
+    /// The handoff's three groups: transport, the track, and the track's and output's controls.
     private var playerLayout: some View {
-        HStack(spacing: 24) {
-            // Left: Playback controls
+        HStack(spacing: 6) {
             playbackControls
 
-            // Center: Track info with seek bar below
-            VStack(spacing: 4) {
-                // Top row: Cover | Title & Artist | Menu
-                HStack(spacing: 10) {
-                    Button {
-                        showAlbumArtMenu.toggle()
-                    } label: {
-                        albumArt(size: 34)
-                    }
-                    .buttonStyle(.plain)
-                    .named("now_playing.cover_menu")
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
+            HStack(spacing: 10) {
+                albumArt(size: 40)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        trackInfo
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if barWidth >= Self.timeMinBarWidth {
+                            timeLabel
                         }
                     }
-                    .popover(isPresented: $showAlbumArtMenu, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            let track = playbackViewModel.currentTrack
-                            if let artistId = track?.artistId {
-                                albumArtMenuItem("track.menu.go_to_artist", systemImage: "person.circle") {
-                                    navigationCoordinator.navigateToArtistSection(artistId: artistId)
-                                }
-                            }
 
-                            if let albumId = track?.albumId {
-                                albumArtMenuItem("track.menu.go_to_album", systemImage: "square.stack") {
-                                    navigationCoordinator.navigateToAlbumSection(albumId: albumId)
-                                }
-                            }
-
-                            albumArtMenuItem("queue.title", systemImage: "list.number") {
-                                navigationCoordinator.navigateToQueue()
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-
-                    trackInfo
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    trackMenu
+                    seekSlider
                 }
-
-                // Bottom row: Seek bar spanning full width
-                progressBar
             }
-            .frame(maxWidth: 350)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
 
-            // Right: Other controls
-            HStack(spacing: 16) {
-                favoriteButton
+            trailingControls
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 18)
+    }
 
-                queuePosition
+    private var trailingControls: some View {
+        HStack(spacing: 2) {
+            favoriteButton
 
-                miniPlayerToggle
+            trackMenu
 
+            Button {
+                exitMiniPlayerIfNeeded()
+                navigationCoordinator.selectNavigationItem(.speakers)
+            } label: {
+                Image(systemName: "airplay.audio")
+            }
+            .named("now_playing.playing_on")
+
+            if barWidth >= Self.volumeMinBarWidth {
                 volumeControl
             }
+
+            // Its only way back to the full window that is not in a menu.
+            if isMini {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        windowState.toggleMiniPlayerMode()
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                }
+                .named("mini_player.restore")
+            }
         }
-        .padding(.horizontal, 20)
+        .buttonStyle(.borderless)
     }
 
     // MARK: - Shared Components
-
-    /// One row of the cover-art popover. Every row dismisses the popover before it
-    /// navigates, so that is here rather than repeated in each action.
-    private func albumArtMenuItem(
-        _ titleKey: LocalizedStringKey,
-        systemImage: String,
-        action: @escaping () -> Void,
-    ) -> some View {
-        Button {
-            showAlbumArtMenu = false
-            action()
-        } label: {
-            Label(titleKey, systemImage: systemImage)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
 
     @ViewBuilder
     private func albumArt(size: CGFloat) -> some View {
@@ -164,7 +146,7 @@ struct NowPlayingBarView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
-                    .clipShape(.rect(cornerRadius: 4))
+                    .clipShape(.rect(cornerRadius: 6))
             } else {
                 // Load new image
                 RetryingAsyncImage(url: url) { phase in
@@ -182,7 +164,7 @@ struct NowPlayingBarView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: size, height: size)
-                            .clipShape(.rect(cornerRadius: 4))
+                            .clipShape(.rect(cornerRadius: 6))
                             .onAppear {
                                 cachedAlbumArtImage = image
                                 cachedAlbumArtURL = urlString
@@ -205,7 +187,7 @@ struct NowPlayingBarView: View {
             .foregroundStyle(.secondary)
             .frame(width: size, height: size)
             .background(.quaternary)
-            .clipShape(.rect(cornerRadius: 4))
+            .clipShape(.rect(cornerRadius: 6))
     }
 
     /// The track's title and artist, or `PlaybackViewModel.errorMessage` in their place while
@@ -242,10 +224,10 @@ struct NowPlayingBarView: View {
                     }
             } else if let track = playbackViewModel.currentTrack {
                 Text(track.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.headline)
                     .lineLimit(1)
                 Text(track.artistName)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -254,16 +236,14 @@ struct NowPlayingBarView: View {
     }
 
     private var playbackControls: some View {
-        HStack(spacing: 16) {
-            shuffleButton
+        HStack(spacing: 2) {
+            shuffleToggle
 
             Button {
                 playbackViewModel.previous()
             } label: {
                 Image(systemName: "backward.fill")
-                    .font(.body)
             }
-            .buttonStyle(.plain)
             .named("menu.previous_track")
             .disabled(!hasPlayback)
 
@@ -275,40 +255,63 @@ struct NowPlayingBarView: View {
                 }
             } label: {
                 Image(systemName: playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title)
+                    .font(.system(size: 22))
+                    .frame(width: 38, height: 38)
+                    .contentShape(.circle)
             }
-            .buttonStyle(.plain)
             .named(playbackViewModel.isPlaying ? "action.pause" : "action.play")
 
             Button {
                 playbackViewModel.next()
             } label: {
                 Image(systemName: "forward.fill")
-                    .font(.body)
             }
-            .buttonStyle(.plain)
             .named("menu.next_track")
             .disabled(!playbackViewModel.hasNext)
+
+            repeatButton
         }
+        .buttonStyle(.borderless)
     }
 
     private var shuffleName: LocalizedStringKey {
         playbackViewModel.isShuffleEnabled ? "shuffle.disable" : "shuffle.enable"
     }
 
-    private var shuffleButton: some View {
-        Button {
-            playbackViewModel.toggleShuffle()
-        } label: {
+    private var shuffleToggle: some View {
+        Toggle(isOn: Binding(
+            get: { playbackViewModel.isShuffleEnabled },
+            set: { _ in playbackViewModel.toggleShuffle() },
+        )) {
             Image(systemName: "shuffle")
-                .font(.caption)
-                .foregroundStyle(playbackViewModel.isShuffleEnabled ? Color.accentColor : Color.secondary)
         }
-        .buttonStyle(.plain)
+        .toggleStyle(.button)
         .disabled(!hasPlayback || !playbackViewModel.canShuffle)
         .accessibilityLabel(shuffleName)
         // Greyed out, it says why; a radio cannot be shuffled.
         .help(playbackViewModel.canShuffle ? shuffleName : "shuffle.unavailable")
+    }
+
+    /// Three states, so a button that steps through them rather than a toggle: off, the
+    /// context, the track, as on Spotify's clients.
+    private var repeatButton: some View {
+        let mode = playbackViewModel.repeatMode
+        return Button {
+            playbackViewModel.cycleRepeat()
+        } label: {
+            Image(systemName: mode == .track ? "repeat.1" : "repeat")
+                .foregroundStyle(mode == .off ? Color.primary : Color.accentColor)
+        }
+        .disabled(!hasPlayback)
+        .named(repeatName(mode))
+    }
+
+    private func repeatName(_ mode: PlaybackQueue.RepeatMode) -> LocalizedStringKey {
+        switch mode {
+        case .off: "repeat.off"
+        case .context: "repeat.context"
+        case .track: "repeat.track"
+        }
     }
 
     /// Current playback position (interpolated for smooth display)
@@ -316,87 +319,44 @@ struct NowPlayingBarView: View {
         playbackViewModel.interpolatedPositionMs
     }
 
-    private var progressBar: some View {
-        // Lower frame rate when not hovering: 10 FPS on hover, 1 FPS otherwise.
-        // Paused while nothing plays: the position is not moving, and each
-        // tick costs the main thread ~5 ms of SwiftUI update — all of the
-        // app's CPU when idle. A seek or a new position still redraws it,
-        // through the view model properties the content reads.
+    /// The position and the length, "m:ss / m:ss". It ticks once a second, and not while
+    /// nothing plays: each tick costs the main thread ~5 ms of SwiftUI update, all of the app's
+    /// CPU when idle. A seek or a new position still redraws it, through the view model.
+    private var timeLabel: some View {
+        TimelineView(.animation(minimumInterval: 1.0, paused: !playbackViewModel.isPlaying)) { _ in
+            Text(verbatim: "\(formatTrackTime(milliseconds: Int(currentPositionMs))) / \(formatTrackTime(milliseconds: Int(playbackViewModel.displayedDurationMs ?? 0)))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+
+    private var seekSlider: some View {
+        // 10 FPS under the pointer, where a drag wants it, 1 FPS otherwise; paused while nothing
+        // plays, as `timeLabel` is.
         TimelineView(.animation(minimumInterval: isHoveringSeekBar ? 0.1 : 1.0, paused: !playbackViewModel.isPlaying)) { _ in
             // The length Control Center shows too, 0 while none is known.
             let durationMs = playbackViewModel.displayedDurationMs ?? 0
-            let position = formatTrackTime(milliseconds: Int(currentPositionMs))
-            let duration = formatTrackTime(milliseconds: Int(durationMs))
-            HStack(spacing: 8) {
-                // Show timestamp only on hover
-                if isHoveringSeekBar {
-                    Text(position)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                }
-
-                Slider(
-                    value: Binding(
-                        get: { Double(currentPositionMs) },
-                        set: { newValue in
-                            playbackViewModel.seek(to: UInt32(newValue))
-                        },
-                    ),
-                    in: 0 ... Double(max(durationMs, 1)),
-                )
-                .controlSize(.mini)
-                // Its value is milliseconds, which accessibility would read out as they are.
-                .accessibilityLabel("now_playing.position")
-                .accessibilityValue(Text("now_playing.position_value \(position) \(duration)"))
-
-                // Show timestamp only on hover
-                if isHoveringSeekBar {
-                    Text(duration)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                }
-            }
-            .frame(height: 12) // Fixed height prevents layout shift on hover
-            .animation(.easeInOut(duration: 0.15), value: isHoveringSeekBar)
+            Slider(
+                value: Binding(
+                    get: { Double(currentPositionMs) },
+                    set: { newValue in
+                        playbackViewModel.seek(to: UInt32(newValue))
+                    },
+                ),
+                in: 0 ... Double(max(durationMs, 1)),
+            )
+            .controlSize(.mini)
+            // Its value is milliseconds, which accessibility would read out as they are.
+            .accessibilityLabel("now_playing.position")
+            .accessibilityValue(Text("now_playing.position_value \(formatTrackTime(milliseconds: Int(currentPositionMs))) \(formatTrackTime(milliseconds: Int(durationMs)))"))
             .onHover { hovering in
                 isHoveringSeekBar = hovering
             }
         }
-    }
-
-    /// Where the playing track sits in the queue, as `n/total`.
-    ///
-    /// Shown only while there is a track to be the `n`. `currentIndex` is
-    /// `previousTracks.count`, which lands one past the end whenever the queue holds history
-    /// but nothing current — a state a queue reaches simply by playing out — and the label
-    /// then read `9/8`. The index is not wrong; the sentence is, because "track n of m" needs
-    /// an n. The slot keeps its width either way so the controls beside it do not shift.
-    private var queuePosition: some View {
-        Button {
-            exitMiniPlayerIfNeeded()
-            navigationCoordinator.navigateToQueue()
-        } label: {
-            Group {
-                let queue = player.queueEntries
-                if queue.currentTrack != nil {
-                    Text(verbatim: "\(queue.currentIndex + 1)/\(queue.length)")
-                } else {
-                    // The counter is the button's only label, so dropping it outright would
-                    // leave an invisible control that VoiceOver announces unnamed. The glyph
-                    // keeps the way into the queue both visible and reachable.
-                    Image(systemName: "text.line.first.and.arrowtriangle.forward")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(width: 50, alignment: .trailing)
-        }
-        .buttonStyle(.plain)
-        .named("queue.open")
+        .frame(height: 10)
     }
 
     /// Whether the current track is favorited (from global store)
@@ -412,10 +372,8 @@ struct NowPlayingBarView: View {
             }
         } label: {
             Image(systemName: isCurrentTrackFavorited ? "heart.fill" : "heart")
-                .font(.body)
-                .foregroundStyle(isCurrentTrackFavorited ? .red : .secondary)
+                .foregroundStyle(isCurrentTrackFavorited ? Color.red : Color.primary)
         }
-        .buttonStyle(.plain)
         .named(.favoriteToggle(isFavorited: isCurrentTrackFavorited))
     }
 
@@ -472,66 +430,31 @@ struct NowPlayingBarView: View {
         playbackViewModel.sliderRefused
     }
 
+    /// The icon and a 72 pt slider. A device that controls its own volume greys it, and says so
+    /// as the tooltip: a greyed-out slider says "not now", not that the device is the reason.
     private var volumeControl: some View {
-        Button {
-            showVolumePopover.toggle()
-        } label: {
+        HStack(spacing: 4) {
             Image(systemName: volumeIconName)
-                .font(.body)
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .named("volume.title")
-        .popover(isPresented: $showVolumePopover, arrowEdge: .bottom) {
-            VStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Image(systemName: "speaker.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Slider(
-                        value: Binding(
-                            get: { currentVolume },
-                            set: { playbackViewModel.setVolumeFromSlider($0 / 100) },
-                        ),
-                        in: 0 ... 100,
-                    )
-                    .frame(width: 120)
-                    .disabled(volumeRefused)
-                    .accessibilityLabel("volume.title")
-                    .accessibilityValue(Text(currentVolume / 100, format: .percent.precision(.fractionLength(0))))
-
-                    Image(systemName: "speaker.wave.3.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .opacity(volumeRefused ? 0.5 : 1)
-
-                // A greyed-out slider says "not now"; it does not say the device is the reason.
-                if volumeRefused {
-                    Text("volume.device_controls_itself \(player.activeDevice?.name ?? "")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: 180)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .padding(12)
-        }
-    }
-
-    private var miniPlayerToggle: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                windowState.toggleMiniPlayerMode()
-            }
-        } label: {
-            Image(systemName: windowState.isMiniPlayerMode ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+
+            Slider(
+                value: Binding(
+                    get: { currentVolume },
+                    set: { playbackViewModel.setVolumeFromSlider($0 / 100) },
+                ),
+                in: 0 ... 100,
+            )
+            .controlSize(.small)
+            .frame(width: 72)
+            .disabled(volumeRefused)
+            .accessibilityLabel("volume.title")
+            .accessibilityValue(Text(currentVolume / 100, format: .percent.precision(.fractionLength(0))))
         }
-        .buttonStyle(.plain)
-        .named(windowState.isMiniPlayerMode ? "mini_player.restore" : "mini_player.enter")
+        .padding(.horizontal, 4)
+        .help(volumeRefused ? Text("volume.device_controls_itself \(player.activeDevice?.name ?? "")") : Text("volume.title"))
     }
 
     @ViewBuilder
@@ -554,8 +477,7 @@ struct NowPlayingBarView: View {
                 // A menu takes its accessibility name from its label, not from a modifier.
                 Label("action.more", systemImage: showPlaylistAddedSuccess ? "checkmark.circle.fill" : "ellipsis")
                     .labelStyle(.iconOnly)
-                    .font(.body)
-                    .foregroundStyle(showPlaylistAddedSuccess ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(showPlaylistAddedSuccess ? Color.accentColor : Color.primary)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
                     .animation(.easeInOut(duration: 0.2), value: showPlaylistAddedSuccess)
