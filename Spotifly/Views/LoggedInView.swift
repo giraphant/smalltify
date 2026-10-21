@@ -61,10 +61,15 @@ struct LoggedInView: View {
                 .searchable(text: $searchText, prompt: Text("search.prompt"))
                 .onSubmit(of: .search) { performSearch() }
                 .onChange(of: searchText) { _, newValue in handleSearchTextChange(newValue) }
-                // The field shows the search on screen, as Back and a recent search change it.
+                // The field shows the search on screen, as Back and a recent search change it, and
+                // nothing on the search page before a search.
                 .onChange(of: navigationCoordinator.displayedSearchQuery) { _, query in
-                    if let query, query != searchText {
-                        searchText = query
+                    if let query {
+                        if query != searchText {
+                            searchText = query
+                        }
+                    } else if navigationCoordinator.selectedNavigationItem == .searchResults {
+                        searchText = ""
                     }
                 }
             }
