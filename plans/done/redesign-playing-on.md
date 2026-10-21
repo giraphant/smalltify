@@ -1,6 +1,7 @@
 # Redesign: Wiedergabe auf (Playing On)
 
-Status: **Open**, planned 2026-10-21. Fourth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #208. Fourth of the stacked redesign PRs. The output name
+following a switch of the system output is not seen live: only the user can switch it
 Components: `Spotifly/Views/SpeakersView.swift`, `Spotifly/Views/Components/ConnectionStatusView.swift`,
 `Spotifly/Views/AirPlayRoutePickerView.swift`, `Spotifly/*.lproj/Localizable.strings`
 Found: 2026-10-21, `design_handoff_spotifly_macos/README.md` ("Wiedergabe auf"),
@@ -63,3 +64,16 @@ unless the player reports them; the bitrate setting is not what a track actually
 - Run the Debug build, open Wiedergabe auf, screenshot it; transfer to the web player in Chrome
   and back by clicking the rows; drag the active device's volume; open Details; press
   Neu verbinden and see the session come back.
+
+### Result
+
+- Live: the form as in the handoff; a click on "Spotifly, Dieser Mac" transferred playback here
+  (arrived paused, as sent) and the row grew its volume slider at 80 %. Device types read as
+  names ("Dieser Mac", "Computer", "AV-Receiver") from a mapping beside the icon one; this Mac is
+  told by `PlayerModel.ownDeviceId`, and AirPlay is enabled by `PlayerModel.isPlayingHere`
+  rather than by the device being named "Spotifly".
+- The output device's name follows the default output through a Core Audio listener while the
+  page shows (a review and Codex both found it went stale when read once).
+- The localization tests caught a bare `"\(typeName)"` literal extracted as the key "%@".
+- The Details disclosure holds reconnect attempts, the device id and the last error; the
+  handoff's "Sitzung" row repeated the status above it and is left out.
