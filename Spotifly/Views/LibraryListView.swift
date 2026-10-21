@@ -163,11 +163,12 @@ struct LibraryListView<Entity: LibraryEntity>: View {
                                 }
                             }
 
-                            ForEach(filteredItems) { item in
+                            let shown = filteredItems
+                            ForEach(shown) { item in
                                 row(for: item)
                             }
 
-                            if filteredItems.isEmpty {
+                            if shown.isEmpty {
                                 ContentUnavailableView.search(text: filter)
                             } else if filter.isEmpty {
                                 LoadMoreRow(pagination: pagination, loadMore: loadMoreItems)

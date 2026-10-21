@@ -13,7 +13,6 @@ struct PlaylistDetailView: View {
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(AppStore.self) private var store
-    @Environment(TrackService.self) private var trackService
     @Environment(PlaylistService.self) private var playlistService
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -140,8 +139,13 @@ struct PlaylistDetailView: View {
     }
 
     private func playlistContent(_ playlist: Playlist) -> some View {
-        VStack(spacing: 0) {
-            header(playlist)
+        // Built once per redraw: a playlist can hold thousands of rows, and each read of `rows`
+        // looks every track up again (`plans/done/playlist-rows-built-once-per-row.md`).
+        let rows = rows
+        let tracks = rows.map(\.track)
+
+        return VStack(spacing: 0) {
+            header(playlist, tracks: tracks)
 
             if isLoading, tracks.isEmpty {
                 ProgressView("loading.tracks")
@@ -151,7 +155,7 @@ struct PlaylistDetailView: View {
                     .frame(maxHeight: .infinity, alignment: .top)
             } else {
                 TrackTable(
-                    rows: tableRows,
+                    rows: tableRows(rows),
                     columns: [.number, .album],
                     currentSection: .playlists,
                     selectionId: playlistId,
@@ -168,7 +172,7 @@ struct PlaylistDetailView: View {
 
     /// The rows, each named by its item's uid: a playlist can hold one song twice, and moving
     /// or removing a row names the occurrence.
-    private var tableRows: [TrackTableRow] {
+    private func tableRows(_ rows: [(item: PlaylistItem, track: Track)]) -> [TrackTableRow] {
         rows.enumerated().map { index, row in
             TrackTableRow(id: row.item.uid, number: index + 1, track: row.track, itemUid: row.item.uid)
         }
@@ -178,7 +182,7 @@ struct PlaylistDetailView: View {
         store.userPlaylistIds.contains(playlistId)
     }
 
-    private func header(_ playlist: Playlist) -> some View {
+    private func header(_ playlist: Playlist, tracks: [Track]) -> some View {
         DetailHeader(
             kind: isOwner || !isFollowed ? String(localized: "detail.kind.playlist") : String(localized: "detail.kind.followed_playlist"),
             title: playlistName,
@@ -341,7 +345,3 @@ struct PlaylistDetailView: View {
         }
     }
 }
-
-// MARK: - Drag and Drop for Playlist Reordering
-
-// Drop delegate for reordering tracks in a playlist
