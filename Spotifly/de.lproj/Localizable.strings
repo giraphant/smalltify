@@ -144,7 +144,6 @@
 "show_all.tracks" = "Alle %d Tracks anzeigen";
 
 /* Speakers */
-"speakers.active" = "Aktiv";
 "speakers.type_active %@" = "%@ · Aktiv";
 "device_type.this_mac" = "Dieser Mac";
 "device_type.computer" = "Computer";

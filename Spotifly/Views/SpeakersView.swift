@@ -149,9 +149,15 @@ struct SpeakerRow: View {
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(device.name)
-                        Text(device.isActive ? "speakers.type_active \(typeName)" : "\(typeName)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if device.isActive {
+                                Text("speakers.type_active \(typeName)")
+                            } else {
+                                Text(verbatim: typeName)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
 
                     Spacer()
