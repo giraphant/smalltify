@@ -122,6 +122,7 @@ final class TrackService {
                 } else {
                     self.store.appendSavedTrackIds(trackIds)
                 }
+                self.store.addFavoriteAddedAt(page.addedAtByTrackId, replacing: offset == 0)
                 self.store.markTracksAsFavorite(trackIds)
 
                 return (page.items?.count ?? 0, page.totalCount ?? 0)

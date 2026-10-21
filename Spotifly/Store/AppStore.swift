@@ -130,6 +130,9 @@ final class AppStore {
         userArtistIds.compactMap { artists[$0] }
     }
 
+    /// When each favorite was added, by track id, as Liked Songs lists it.
+    private(set) var favoriteAddedAt: [String: Date] = [:]
+
     /// User's favorite tracks in display order
     var favoriteTracks: [Track] {
         savedTrackIds.compactMap { tracks[$0] }
@@ -408,6 +411,11 @@ final class AppStore {
     /// offsets are Spotify's side of the conversation.
     func setSavedTrackIds(_ ids: [String]) {
         savedTrackIds = ids.uniqued()
+    }
+
+    /// Adds a page's dates added; a first page replaces them all.
+    func addFavoriteAddedAt(_ dates: [String: Date], replacing: Bool) {
+        favoriteAddedAt = replacing ? dates : favoriteAddedAt.merging(dates) { old, _ in old }
     }
 
     /// Append saved track IDs for Favorites pagination. Deduplicated across the whole list
