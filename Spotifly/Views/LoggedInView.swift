@@ -65,9 +65,12 @@ struct LoggedInView: View {
                         performSearch()
                     }
                 }
-                // A filter stays with Favorites: leaving it puts back the search shown, if any.
-                .onChange(of: navigationCoordinator.selectedNavigationItem) { old, _ in
-                    if old == .favorites {
+                // A filter stays with Favorites: it starts empty there, and leaving puts back the
+                // search shown, if any.
+                .onChange(of: navigationCoordinator.selectedNavigationItem) { old, new in
+                    if new == .favorites {
+                        searchText = ""
+                    } else if old == .favorites {
                         searchText = navigationCoordinator.displayedSearchQuery ?? ""
                     }
                 }
