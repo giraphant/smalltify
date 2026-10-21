@@ -20,7 +20,7 @@ import Synchronization
 /// decoded into the same stream behind the current one.
 ///
 /// The player's item is that stream: a CAF written as the pipeline pushes, served through a
-/// resource loader under a custom scheme, its data chunk declared a day long. One item serves the
+/// resource loader under a custom scheme, its data chunk declared a week long. One item serves the
 /// session: an item started while a receiver is chosen never asks its loader for a byte, so a
 /// `restart` (a load, a seek) is a seek within it to where the new audio begins, the end of what
 /// is written. Nothing is decoded ahead as a whole file: `enqueue` returns once what is written
@@ -56,7 +56,7 @@ actor AudioOutput {
     private var streamFrames: Int64 = 0
     /// Where the current run begins in the stream: the playhead's zero. Read from any thread.
     private nonisolated let origin = Mutex<Int64>(0)
-    /// Frames a stream holds before the next restart begins a new one: a day, less ten minutes.
+    /// Frames a stream holds before the next restart begins a new one: a week, less ten minutes.
     private static let streamCapacity = PCMStream.declaredFrames - Int64(sampleRate * 600)
     /// The playhead when it last moved, and when that was: a player that plays and does not
     /// move wants data it has not got, which it does not say while it does not wait to play.
@@ -345,8 +345,10 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
     let url: URL
     let queue: DispatchQueue
 
-    /// The data chunk's declared length: a day of audio, far longer than a session plays.
-    static let declaredFrames = Int64(AudioOutput.sampleRate * 86400)
+    /// The data chunk's declared length: a week of audio. Only a load or a seek begins a new
+    /// stream, so gapless playback runs on in one: declared a day long, a day of it would have
+    /// reached the end and stopped.
+    static let declaredFrames = Int64(AudioOutput.sampleRate * 86400 * 7)
     private static let declaredDataBytes = declaredFrames * Int64(AudioOutput.bytesPerFrame)
 
     private let headerLength: Int64
@@ -414,8 +416,8 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         if let data = request.dataRequest {
             debugLog("AudioOutput", "Stream \(number): request at \(data.requestedOffset), \(data.requestsAllDataToEndOfResource ? "to the end" : "\(data.requestedLength) bytes"), \(written) written")
             // Before it plays, the player reads two places far ahead, and waits for both: the
-            // declared end, to look for chunks after the data, and 1,667,301,376 (0x63610000) of a
-            // day-long stream. The end is a day of audio in, which no one reaches: silence
+            // declared end, to look for chunks after the data, and byte 1,667,301,376 (0x63610000),
+            // whatever the length. The end is a week of audio in, which no one reaches: silence
             // answers it. The other is finished empty. Answered with silence, it was kept and
             // would have played as 12 s of silence 79 minutes in, and the player's one range
             // request stopped there; finished empty, the request runs to the declared end.
