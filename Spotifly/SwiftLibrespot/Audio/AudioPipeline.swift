@@ -758,8 +758,10 @@ actor AudioPipeline {
             adoptContinuation()
         }
 
-        let positionMs = frameToMs(currentTrackFrame())
-        eventSink.yield(.position(UInt64(positionMs)))
+        // Clamped to the track: the output's playhead can move back past the
+        // track's start, when a seek on an AirPlay receiver lands late.
+        let positionMs = currentPositionMs()
+        eventSink.yield(.position(positionMs))
         fetchNextIfDue(positionMs: Int64(positionMs))
 
         // While a continuation waits for the playhead, the decode is its. A
