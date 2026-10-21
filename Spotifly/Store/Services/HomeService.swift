@@ -108,7 +108,9 @@ final class HomeService {
                 try Task.checkCancellation()
                 let tracks = response.tracks
                 let artists = response.artists
-                self.store.upsertTracks(tracks)
+                // Only the tracks the store has not got: these name no playability, and would
+                // mark a track an album or playlist knows to be unplayable playable again.
+                self.store.upsertTracks(tracks.filter { self.store.tracks[$0.id] == nil })
                 self.store.upsertArtists(artists)
                 self.store.setTopContent(
                     TopContent(trackIds: tracks.map(\.id), artistIds: artists.map(\.id)),
