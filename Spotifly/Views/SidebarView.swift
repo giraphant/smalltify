@@ -6,9 +6,6 @@
 //
 
 import SwiftUI
-#if canImport(AppKit)
-    import AppKit
-#endif
 
 enum NavigationItem: Hashable, Identifiable {
     case startpage
@@ -83,6 +80,8 @@ enum NavigationItem: Hashable, Identifiable {
 }
 
 struct SidebarView: View {
+    @Environment(PlayerModel.self) private var player
+
     @Binding var selection: NavigationItem?
     var hasSearchResults: Bool = false
     var userProfile: UserProfile?
@@ -96,95 +95,62 @@ struct SidebarView: View {
                 ForEach(Self.mainNavItems) { item in
                     navigationLink(for: item)
                 }
-            } header: {
-                HStack(spacing: 8) {
-                    AppBrandIcon(size: 22)
-                    Text("app.name")
-                        .font(.headline)
-                }
-                .padding(.bottom, 8)
-            }
 
-            if hasSearchResults {
-                Section {
+                if hasSearchResults {
                     navigationLink(for: .searchResults)
                 }
             }
 
-            Section {
+            Section("nav.library") {
                 ForEach(Self.libraryNavItems) { item in
                     navigationLink(for: item)
                 }
-            } header: {
-                Text("nav.library")
             }
         }
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 6) {
-                // Opens the native macOS Preferences window (Settings scene).
-                SettingsLink {
-                    Label("nav.settings", systemImage: "gearshape")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-
-                Button {
-                    selection = .profile
-                } label: {
-                    HStack(spacing: 8) {
-                        ProfileAvatarView(userProfile: userProfile, size: 28)
-                        Text(userProfile?.displayName ?? String(localized: "nav.profile"))
-                            .lineLimit(1)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(selection == .profile
-                                ? AnyShapeStyle(Color.accentColor.opacity(0.15))
-                                : AnyShapeStyle(Color(nsColor: .controlBackgroundColor))),
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1),
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 8)
+            footer
         }
-        .navigationTitle("app.name")
     }
 
     private func navigationLink(for item: NavigationItem) -> some View {
         NavigationLink(value: item) {
             Label(item.title, systemImage: item.icon)
+                // The tracks still to come; a count of 0 shows none. On the label, not the link:
+                // a badge on the link took every row's selection highlight away.
+                .badge(item == .queue ? player.queueEntries.nextTracks.count : 0)
         }
     }
-}
 
-// MARK: - App Brand Icon
+    /// The account, which opens Profil, and the gear that opens Settings, on one row.
+    private var footer: some View {
+        HStack(spacing: 4) {
+            Button {
+                selection = .profile
+            } label: {
+                HStack(spacing: 8) {
+                    ProfileAvatarView(userProfile: userProfile, size: 22)
+                    Text(userProfile?.displayName ?? String(localized: "nav.profile"))
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+                .padding(.horizontal, 8)
+                .background(
+                    selection == .profile ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear),
+                    in: .rect(cornerRadius: 7),
+                )
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
 
-/// The app's real icon (the same one shown in the Dock), used as the sidebar brand mark.
-struct AppBrandIcon: View {
-    var size: CGFloat = 22
-
-    var body: some View {
-        #if canImport(AppKit)
-            Image(nsImage: NSApplication.shared.applicationIconImage)
-                .resizable()
-                .interpolation(.high)
-                .frame(width: size, height: size)
-        #else
-            Image(systemName: "music.note.list")
-                .foregroundStyle(.green)
-                .frame(width: size, height: size)
-        #endif
+            SettingsLink {
+                Label("nav.settings", systemImage: "gearshape")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help("nav.settings_shortcut")
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
     }
 }
 
@@ -219,7 +185,7 @@ struct ProfileAvatarView: View {
     private func initialsView(for name: String?) -> some View {
         let initials = String((name ?? "?").prefix(2)).uppercased()
         return Circle()
-            .fill(.green.gradient)
+            .fill(Color.accentColor.gradient)
             .frame(width: size, height: size)
             .overlay {
                 Text(initials)
