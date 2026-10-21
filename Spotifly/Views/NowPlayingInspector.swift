@@ -66,22 +66,9 @@ struct NowPlayingInspector: View {
         .padding(.bottom, 16)
     }
 
-    /// One of the next tracks, identified by its place in the queue: a track can be queued twice.
-    private struct UpNextItem: Identifiable {
-        let id: Int
-        let row: PlaybackViewModel.QueueRow
-        let track: Track
-    }
-
-    /// The queue's next tracks the store has metadata for; `QueueService` loads it on every change
-    /// of the queue, as the Queue page needs it too.
-    private var upNextItems: [UpNextItem] {
-        Array(player.queueEntries.nextTracks.enumerated().lazy.compactMap { index, entry in
-            store.tracks[entry.trackId].map { track in
-                UpNextItem(id: index, row: .next(index: index, trackUri: track.uri, uid: entry.uid), track: track)
-            }
-        }
-        .prefix(Self.upNextLimit))
+    /// The next tracks the store has metadata for, at most eight.
+    private var upNextRows: ArraySlice<(entry: QueueEntry, track: Track, row: PlaybackViewModel.QueueRow)> {
+        player.queueEntries.nextRows(in: store.tracks).prefix(Self.upNextLimit)
     }
 
     private var upNext: some View {
@@ -97,16 +84,23 @@ struct NowPlayingInspector: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
 
-            List(upNextItems) { item in
-                Button {
-                    playbackViewModel.play(queueRow: item.row)
-                } label: {
-                    UpNextRow(track: item.track)
+            ScrollView {
+                VStack(spacing: 2) {
+                    // By the row's uid, which stays with it as the queue advances, so the rows
+                    // that remain keep their covers; by position where there is none, as a track
+                    // can be queued twice.
+                    ForEach(upNextRows.enumerated().map { (id: $0.element.entry.uid ?? String($0.offset), next: $0.element) }, id: \.id) { item in
+                        let next = item.next
+                        Button {
+                            playbackViewModel.play(queueRow: next.row)
+                        } label: {
+                            UpNextRow(track: next.track)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
     }
 }
@@ -115,12 +109,15 @@ struct NowPlayingInspector: View {
 private struct UpNextRow: View {
     let track: Track
 
+    /// Built once rather than on every redraw, as `TrackRow`'s is.
+    private static let artworkShape = AnyShape(.rect(cornerRadius: 4))
+
     var body: some View {
         HStack(spacing: 10) {
             Artwork(
                 images: track.images,
                 size: 32,
-                shape: AnyShape(.rect(cornerRadius: 4)),
+                shape: Self.artworkShape,
                 symbol: "music.note",
                 symbolFont: .caption,
             )

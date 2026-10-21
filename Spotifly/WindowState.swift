@@ -64,7 +64,8 @@ final class WindowState {
     }
 
     func exitMiniPlayerMode(window preferredWindow: NSWindow? = nil) {
-        guard isMiniPlayerMode, let window = resolvedWindow(preferred: preferredWindow) else { return }
+        guard isMiniPlayerMode else { return }
+        guard let window = resolvedWindow(preferred: preferredWindow) else { return }
 
         // Restore resizable style
         window.styleMask.insert(.resizable)
