@@ -1,6 +1,6 @@
 # Redesign: the "Jetzt läuft" inspector
 
-Status: **Open**, planned 2026-10-21. Third of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #207. Third of the stacked redesign PRs
 Components: `Spotifly/Views/NowPlayingInspector.swift` (new), `Spotifly/Views/LoggedInView.swift`,
 `Spotifly/Views/NowPlayingBarView.swift`, `Spotifly/WindowState.swift`, `Spotifly/SpotiflyApp.swift`,
 `Spotifly/*.lproj/Localizable.strings`
@@ -47,3 +47,14 @@ the same call as a double-click in the Queue page, so another device gets the we
 - Build, unit tests.
 - Run the Debug build, open the inspector from the bar and with ⌥⌘I, screenshot it while a
   track plays; click an "Als Nächstes" row and see that track play; hide it again.
+
+### Result
+
+- Live: View → Jetzt läuft and the bar's toggle show it; a click on "Pearls" in Als Nächstes
+  took the mirrored track over and played Pearls, as a queue row does. Screenshots matched the
+  handoff once the inspector drew an opaque background (its default glass let the page's covers
+  bleed through) and a header of its own (`.navigationTitle` shows none in an inspector).
+- Reviews: `/simplify` moved the next rows into `Queue.nextRows(in:)`, shared with the Queue
+  page, keyed the rows by uid so covers survive the queue advancing, and swapped the `List` for
+  a plain stack. `/code-review` found unplayable tracks undimmed; Codex then found that a click
+  on one still skipped to it. Both fixed as `TrackRow` does it.
