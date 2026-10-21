@@ -65,14 +65,8 @@ struct TrackRow: View {
         store.isFavorite(track.id)
     }
 
-    /// Provider symbol for display (Q=queue, C=context, A=autoplay, nil for unavailable)
     private var providerSymbol: String? {
-        switch provider {
-        case .queue: "Q"
-        case .context: "C"
-        case .autoplay: "A"
-        case .unavailable, .none: nil
-        }
+        provider?.symbol
     }
 
     /// Whether the row is greyed out: a queue entry the player could not name, or a track

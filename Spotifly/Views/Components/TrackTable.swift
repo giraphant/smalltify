@@ -18,6 +18,10 @@ struct TrackTableRow: Identifiable {
     var addedAt: Date?
     /// The playlist item's uid, which removing it from its playlist names.
     var itemUid: String?
+    /// A queue row already played, dimmed.
+    var isPast = false
+    /// A short tag after the title: in the queue, where the row came from (Q, C, A).
+    var tag: String?
 
     var title: String {
         track.name
@@ -87,7 +91,7 @@ struct TrackTable: View {
             .defaultVisibility(columns.contains(.number) ? .visible : .hidden)
 
             TableColumn("table.title", value: \.title) { row in
-                TitleCell(track: row.track)
+                TitleCell(track: row.track, tag: row.tag, isPast: row.isPast)
                     .modifier(cellEnvironment)
             }
 
@@ -247,10 +251,12 @@ private struct NumberCell: View {
     }
 }
 
-/// A 32 pt cover beside the title over the artist; the accent while the track plays, and dimmed,
-/// with the reason as tooltip, where Spotify will not play it.
+/// A 32 pt cover beside the title over the artist; the accent while the track plays, and dimmed
+/// once played, or, with the reason as tooltip, where Spotify will not play it.
 private struct TitleCell: View {
     let track: Track
+    let tag: String?
+    let isPast: Bool
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
@@ -273,9 +279,18 @@ private struct TitleCell: View {
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
+
+            if let tag {
+                Text(verbatim: tag)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(.quaternary, in: .rect(cornerRadius: 3))
+            }
         }
         .padding(.vertical, 4)
-        .opacity(track.isPlayable ? 1 : 0.5)
+        .opacity(track.isPlayable && !isPast ? 1 : 0.5)
         .help(ifAny: track.unplayableMessage)
     }
 }

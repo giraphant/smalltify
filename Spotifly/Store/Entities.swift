@@ -385,6 +385,17 @@ enum TrackProvider: String, Codable {
     case autoplay // Autoplay suggestion
     case unavailable // Track is unavailable
 
+    /// The tag a queue row shows: Q queued by hand, C from the context, A autoplay; none for
+    /// a track the player could not name.
+    var symbol: String? {
+        switch self {
+        case .queue: "Q"
+        case .context: "C"
+        case .autoplay: "A"
+        case .unavailable: nil
+        }
+    }
+
     /// Parse from librespot provider string. Anything unrecognised is a track this app has
     /// no row for, which is what `.unavailable` already means.
     init(from providerString: String) {
