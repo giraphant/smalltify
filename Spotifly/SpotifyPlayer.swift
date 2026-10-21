@@ -118,15 +118,10 @@ nonisolated struct PlayerSnapshot: Equatable {
     var interruption: PlaybackInterruption?
 }
 
-/// The one audio output. Fed by the decode loop inside the pipeline; volume and pacing live in
-/// it, and its player is the one the AirPlay picker routes.
-private nonisolated let audioOutputInstance = AudioOutput()
-
 enum SpotifyPlayer {
-    /// The shared audio output the client's pipeline plays into.
-    nonisolated static var audioOutput: AudioOutput {
-        audioOutputInstance
-    }
+    /// The one audio output, which the client's pipeline plays into. Volume and pacing live in
+    /// it, and its player is the one the AirPlay picker routes.
+    nonisolated static let audioOutput = AudioOutput()
 
     // MARK: - Lifecycle
 

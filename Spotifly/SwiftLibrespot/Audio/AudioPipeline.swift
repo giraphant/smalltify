@@ -96,10 +96,6 @@ actor AudioPipeline {
     /// reached the end of the track.
     private var decoded: (frames: Int64, finished: Bool) = (0, false)
 
-    /// Numbers each decode, so a replaced decode's last chunk is not counted
-    /// as the new one's.
-    private var decodeRun = 0
-
     /// Frames per chunk handed to the sink, 93 ms.
     private static let chunkFrames = 4096
 
@@ -600,12 +596,11 @@ actor AudioPipeline {
         publish(keepPaused ? .paused(trackUri: currentTrackUri ?? "") : .playing(trackUri: currentTrackUri ?? ""))
     }
 
+    /// The decode before it has been retired, or has finished: one decode at a
+    /// time feeds the sink, and counts into `decoded`.
     private func startDecodeTask(_ decoder: VorbisDecoder) {
-        decodeTask?.cancel()
-        decodeRun += 1
-        let run = decodeRun
         decoded = (0, false)
-        decodeTask = Task { await self.decode(decoder, run: run) }
+        decodeTask = Task { await self.decode(decoder) }
     }
 
     /// Decodes into the sink until the track ends or the task is cancelled.
@@ -613,7 +608,7 @@ actor AudioPipeline {
     /// Each `enqueue` suspends until the output wants the chunk, which paces
     /// the loop, holds it through a pause and frees this actor meanwhile.
     /// Decoding a chunk takes about a tenth of a millisecond.
-    private func decode(_ decoder: VorbisDecoder, run: Int) async {
+    private func decode(_ decoder: VorbisDecoder) async {
         let channels = decoder.format.channels
         let samples = UnsafeMutablePointer<Float>.allocate(capacity: Self.chunkFrames * channels)
         defer { samples.deallocate() }
@@ -621,18 +616,16 @@ actor AudioPipeline {
         while !Task.isCancelled {
             let frames = decoder.read(into: samples, maxFrames: Self.chunkFrames)
             guard frames > 0 else {
-                if run == decodeRun {
-                    decoded.finished = true
-                    debugLog("AudioPipeline", "Decode finished: \(decoded.frames) frames")
-                }
+                decoded.finished = true
+                debugLog("AudioPipeline", "Decode finished: \(decoded.frames) frames")
                 return
             }
 
             let pcm = Data(bytes: samples, count: frames * channels * MemoryLayout<Float>.size)
             switch await sink.enqueue(pcm, frames: frames) {
-            case .accepted where run == decodeRun:
+            case .accepted:
                 decoded.frames += Int64(frames)
-            case .accepted, .flushed:
+            case .flushed:
                 return
             case .failed:
                 eventSink.yield(.error(.decodingFailed("the audio output refused a buffer")))
@@ -673,12 +666,6 @@ actor AudioPipeline {
         continuation = (track, decoder, startFrame)
         debugLog("AudioPipeline", "Decoding \(uri) behind the current track, from sink frame \(startFrame)")
         startDecodeTask(decoder)
-    }
-
-    private func adoptContinuationIfReached() {
-        if let continuation, sink.playedFrames >= continuation.startFrame {
-            adoptContinuation()
-        }
     }
 
     /// The playhead has reached the continuation: it is now the loaded track,
@@ -766,7 +753,9 @@ actor AudioPipeline {
         // A transition under way owns the state this reads and changes.
         guard !transitionInProgress, currentTrackUri != nil, isPlaying, !isPaused else { return }
 
-        adoptContinuationIfReached()
+        if let continuation, sink.playedFrames >= continuation.startFrame {
+            adoptContinuation()
+        }
 
         let positionMs = frameToMs(currentTrackFrame())
         eventSink.yield(.position(UInt64(positionMs)))
