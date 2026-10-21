@@ -1,95 +1,90 @@
-# Probe: AVPlayer as the only audio output, streamed, with AirPlay from the shell
+# AVPlayer as the audio output, streamed, with AirPlay from the shell
 
-Status: **Open**, probed 2026-10-21 (PR #219): it works, locally and on the Küche HomePod, behind a
-Debug switch; the renderer stays the default. Checked by ear through the Mac's microphone, not by
-the user; the bar's volume does not reach a HomePod, and a paused Spotifly loses its receiver when
-another app plays
-Components: `Spotifly/AudioRenderer.swift`, `Spotifly/StreamingPlayerSink.swift` (new),
-`Spotifly/SwiftLibrespot/Audio/AudioPipeline.swift`, `Spotifly/SpotifyPlayer.swift`,
-`Spotifly/Views/AirPlayRoutePickerView.swift`, `Spotifly/Views/NowPlayingBarView.swift`,
-`Spotifly/Views/SpeakersView.swift`, `Spotifly/SpotiflyApp.swift`
+Status: **Done**, 2026-10-21, PR #219: the app's only output, the renderer removed. Probed behind
+a Debug switch first (below), checked by ear through the Mac's microphone on the Küche HomePod,
+not by the user. Two limits stay: the bar's volume does not reach a receiver, and a paused
+Spotifly loses its receiver when another app plays. Supersedes #202's handover design
+Components: `Spotifly/AudioOutput.swift` (was the probe's `StreamingPlayerSink.swift`),
+`Spotifly/AudioRenderer.swift` (removed), `Spotifly/SwiftLibrespot/Audio/AudioPipeline.swift`,
+`Spotifly/SpotifyPlayer.swift`, `Spotifly/Views/AirPlayRoutePickerView.swift`,
+`Spotifly/Views/NowPlayingBarView.swift`, `Spotifly/Views/SpeakersView.swift`,
+`Spotifly/Views/Components/AudioOutputDevice.swift` (removed), `DEVELOPMENT.md`
 Found: 2026-10-21, `plans/open/spotifly-only-airplay.md` on PR #202, and the user: "try AVPlayer
 for everything … and get around the whole file needs to be decoded restriction"
 
 ## Summary
 
 Only an `AVPlayer` can be sent to AirPlay by itself on macOS (`AVRoutePickerView.player`), so
-#202 hands playback over between the renderer and an `AVPlayer` playing one whole decoded song.
-This probe tries the other way: `AVPlayer` for all output, fed as one continuous stream, so
-AirPlay is a choice in the native picker rather than a mode, and nothing is decoded ahead of
-need.
+#202 handed playback over between the renderer and an `AVPlayer` playing one whole decoded song.
+Instead, `AVPlayer` is now the only output, fed as one continuous stream: AirPlay is a choice in
+the native picker rather than a mode, nothing is decoded ahead of need, and the pipeline, Connect,
+the queue and gapless playback are unchanged.
 
 ## Problem
 
-- #202's handover is the costly part: two clocks, two volume paths, a one-song limit that
-  refuses next-track commands, no gapless or queue on AirPlay, and an "AirPlay verwenden" step
+- #202's handover was the costly part: two clocks, two volume paths, a one-song limit that
+  refused next-track commands, no gapless or queue on AirPlay, and an "AirPlay verwenden" step
   before the picker.
 - Its `AVPlayer` played a complete CAF of a decoded song: 74 MB and 0.9 s of preparation for
   3.5 minutes, written before a note plays. Streaming was named and not tried.
-- #202 rejected `AVPlayer` for everything "without evidence". Its tests are not to be relied on
-  much; this probe measures its own.
+- #202 rejected `AVPlayer` for everything "without evidence". The probe measured its own.
 
 ## Solution
 
-### The seam
+### The output
 
-`AudioPipeline` pushes Float32 PCM into one sink and paces itself on it: `enqueue` suspends until
-the output wants more, `restart`, `pause`, `resume`, `stop`, `playedFrames` for the audible
-playhead, `isStalled`, `setVolume`. It already decodes the next track into the same sink behind
-the current one, which is all its gapless playback is. A second sink with the same contract
-leaves the pipeline, Connect and the queue untouched:
+`AudioPipeline` pushes Float32 PCM into one output and paces itself on it: `enqueue` suspends
+until the output wants more, `restart`, `pause`, `resume`, `stop`, `playedFrames` for the audible
+playhead, `setVolume`. It decodes the next track into the same output behind the current one,
+which is all its gapless playback is. `AudioOutput` keeps that contract over an `AVPlayer`:
 
-- `AudioSink`, a protocol both sinks conform to; `AudioRenderer` unchanged apart from it.
-- `StreamingPlayerSink`, an `AVPlayer` whose item is a stream the sink writes: a CAF of
-  44.1 kHz stereo Float32 PCM, served through an `AVAssetResourceLoader` delegate under a custom
-  URL scheme, with a data chunk declared a day long. **One item serves the session**: a
-  `restart` (a load, a seek) is a seek within it to the end of what is written, where the new
-  audio begins (see Result for why). Between tracks the stream runs on, so a track change is the
-  next sample, as with the renderer.
-- Pacing: `enqueue` appends to the stream and returns once what is written ahead of the
-  playhead is under a target (a few seconds); the loader answers `AVPlayer`'s requests from what
-  is written, holding a request until the bytes exist.
-- `playedFrames` from the item's timebase, so it is audible time, as `AVPlayer` accounts for an
-  AirPlay receiver's latency.
-- Volume: `AVPlayer.volume`.
+- The player's item is a stream the output writes: a CAF of 44.1 kHz stereo Float32 PCM, served
+  through an `AVAssetResourceLoader` delegate under a custom URL scheme, with a data chunk
+  declared a day long. **One item serves the session**: a `restart` (a load, a seek) is a held
+  seek within it to the end of what is written, where the new audio begins, and plays once the
+  seek is done. Between tracks the stream runs on, so a track change is the next sample.
+- Pacing: `enqueue` appends to the stream and returns once what is written ahead of the playhead
+  is under 10 s, or at once while the player waits or stands still (up to 30 s); asleep, it wakes
+  about once a second. The loader answers `AVPlayer`'s requests from what is written, holding a
+  request until the bytes exist, and keeps 8 MB behind what the player has read.
+- `playedFrames` from the item's timebase: audible time, which accounts for a receiver's latency.
+- Volume: `AVPlayer.volume`, this Mac's; a failed item is reported (`.failed`) and replaced at the
+  next restart.
 
-`SpotifyPlayer` picks the sink at launch from a Debug menu toggle ("Use AVPlayer Output (from
-Next Launch)"), or a launch argument, `-useAVPlayerOutput YES`.
-
-### Measured, each logged under `PlayerSink`
-
-1. Start: from `restart` to the timebase running, for a load and a seek, against the renderer.
-2. What `AVPlayer` asks the loader for: offsets, lengths, whether it reads sequentially, how far
-   ahead it buffers, and whether it ever asks for bytes not yet written.
-3. Track changes: no stall at a boundary on a gapless album (the stream does not break there).
-4. Position: what Connect reports against what is heard.
-5. Output changes: switching speakers in Control Center, without the renderer's stall
-   workaround.
-6. AirPlay from the bar's picker, mid-song, Safari staying on the Mac: the user listens.
-
-If `AVPlayer` will not play an open-ended stream, the fallback is a per-track item of exact
-length, decoded on demand from byte ranges, in an `AVQueuePlayer`, with gapless measured.
+Removed with the renderer: the `AudioSink` protocol the probe compared them through, the
+pipeline's refill from the playhead after a stalled or changed output (the player follows an
+output change itself), and the probe's Debug switch.
 
 ### Shell
 
-- `AirPlayRoutePickerView` binds the sink's player, so the picker routes Spotifly alone.
-- Bar: the AirPlay button becomes that picker while this Mac plays (the system highlights it
-  while a receiver is chosen); with another Connect device playing, or with the renderer, it
-  opens Wiedergabe auf, as now.
-- Wiedergabe auf: the AirPlay row's picker, bound the same way.
-- Volume: the bar's slider is this Mac's player volume; on a receiver, its own volume is the
-  slider in the picker's menu (#202 found no app-side gain reaching a HomePod).
+- `AirPlayRoutePickerView` binds the output's player, so the picker routes Spotifly alone.
+- Bar: the AirPlay button is that picker while this Mac plays (the system highlights it while a
+  receiver is chosen); with another Connect device playing, it opens Wiedergabe auf.
+- Wiedergabe auf: the AirPlay row's picker, bound the same way, without the Mac's output device
+  name, which is not where Spotifly plays once routed (nothing reports the player's route); its
+  footer says only Spotifly goes there and where the receiver's volume is.
+- Volume: the bar's slider is this Mac's player volume. No public macOS API sets a receiver's
+  volume, or says a receiver is chosen, so the slider's tooltip says a receiver's volume is set in
+  the AirPlay menu, whose own slider sets it.
+
+### Left as it was
+
+- `docs/cpu-benchmark/renderer/` measured `AudioRenderer.swift` alone and no longer runs; the
+  benchmark write-up is a record of 2026-09-27.
+- #202's plans (`spotifly-only-airplay.md`, `spotifly-airplay-backend.md`) live on its own
+  branch; this design replaces them.
 
 ## Verification
 
-- Build, unit tests; renderer behaviour unchanged with the switch off.
-- With the switch on: play, pause, seek, skip, a gapless album across a boundary, a Connect
-  handover; the `PlayerSink` log for 1–5; the user picks the HomePod and listens for 6.
+- Build, unit tests (the stream header).
+- Live, on the LG display and the Küche HomePod: play, pause, seek, Next, a gapless live album
+  across a track change, a Connect handover out and back, output changes, CPU against the
+  renderer, by ear through the Mac's microphone; and again with the renderer gone (below).
 
-### Result
+### Probe, first round
 
-Measured on 2026-10-21 with the switch on, macOS 27, Green Day's artist context, on the LG
-display's speakers and on the Küche HomePod. Each line is from the `PlayerSink` log (a line every
+Measured on 2026-10-21 with the probe's switch on, macOS 27, Green Day's artist context, on the LG
+display's speakers and on the Küche HomePod. Each line is from the `PlayerSink` log (now `AudioOutput`) (a line every
 5 s: the item's playhead, what it has loaded, its rate).
 
 **Streaming works; nothing is decoded ahead as a file.** `AVPlayer` asks the loader for 2 bytes
@@ -128,7 +123,7 @@ What held:
   without a stop. The picker keeps the HomePod across seeks, as the route belongs to the player.
 - The renderer path, switch off, plays as before, and the bar shows its Wiedergabe-auf button.
 
-### Second round: by ear, CPU, handover
+### Probe, second round: by ear, CPU, handover
 
 Listened with the MacBook's microphone (`ffmpeg -f avfoundation`), the HomePod beside it, the
 level per 50–250 ms window in dBFS; the room is about −76 dB, music −35 to −40.
