@@ -188,5 +188,17 @@ display, and not by ear: its volume was at 6 %), against the item's clock: a gap
 due at 20:14:38.66 came at 38.81 (one 250 ms tick); after a seek, 16.02 s of audio in 16.10 s;
 after a resume, 10.09 s in 10.08 s.
 
-Not rerun since the cleanup: the Küche HomePod, which needs the AirPlay picker and so an
-unlocked screen.
+Then on the Küche HomePod, by ear through the Mac's microphone (the room at −68 to −82 dB),
+its volume turned down from 52 % to 35 % in the picker's slider:
+
+- Playing: −35.7 dB at 52 %, −41.8 dB at 35 %, no dropouts.
+- Pause and resume: silent and back within about half a second, five times. One resume, at the
+  very end of a track with the next decoded behind it, went silent for about 1.3 s: the player
+  paused itself 1.3 s in, and the output's restart 100 ms later brought it back.
+- Seeks: eleven of twelve done in 4–263 ms with the music running on. **One took 18 s**: the
+  player said paused, yet the HomePod played on through the 9 s written ahead and into the new
+  run, a gapless continuation was taken over, and the late seek then moved the playhead back
+  8 s. The pipeline trapped converting that negative position, and the app crashed; it now
+  clamps it to the track, as every other reader did. The 8 s heard twice in that case remain.
+- Gapless across two track changes, no window under −50 dB; Next twice, playing within 15 ms.
+- Footprint over two minutes of playback: 284 MB, flat.
