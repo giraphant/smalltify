@@ -1,6 +1,7 @@
 # Redesign: Playlists, and the library column Alben and Künstler share
 
-Status: **Open**, planned 2026-10-21. Eighth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #212. Eighth of the stacked redesign PRs. Dragging a row to
+reorder is not tried live: the move's service calls are unchanged, its table plumbing is new
 Components: `Spotifly/Views/LibraryListView.swift`, `Spotifly/Views/PlaylistDetailView.swift`,
 `Spotifly/Views/LoggedInView.swift`, `Spotifly/Views/LoggedInToolbars.swift`, `Spotifly/Store/Entities.swift`,
 `Spotifly/*.lproj/Localizable.strings`
@@ -48,7 +49,7 @@ which returns them, so the table stays; the follow toggle the handoff adds is ke
   description, "von Owner · N Titel · Dauer", Abspielen, Zufällig, and for someone else's
   playlist a bordered toggle "In Bibliothek" / "Zur Bibliothek".
 - `TrackTable` with #, Titel, Album, Dauer, sortable; own playlists keep drag-to-reorder while
-  the table is in the playlist's order (`TableRow.draggable` / `dropDestination` on the rows).
+  the table is in the playlist's order (`TableRow.draggable` and `onInsert` on the rows; `dropDestination` takes no index there).
 - Toolbar: New playlist (leading), Share, and a `Menu` with Abspielen, Zur Warteschlange
   hinzufügen, then Details bearbeiten…, Cover…, Playlist löschen… for one's own, or Aus/Zur
   Bibliothek for another's, then Link kopieren.
@@ -59,3 +60,14 @@ which returns them, so the table stays; the follow toggle the handoff adds is ke
 - Run the Debug build: filter the column, open own and followed playlists, sort, reorder a
   track in a test playlist created for it (then delete that playlist), follow/unfollow a
   playlist and restore it, New playlist (and delete it again), Share.
+
+### Result
+
+- Live: the column filters ("Sauna"), rows show their owner; an own playlist and someone else's
+  ("Sommer", "Playlist · Gefolgt", 64 tracks listed, "In Bibliothek") render as the handoff
+  draws them; the toolbar's New Playlist made "Spotifly-redesign-test", which opened, and the
+  menu's "Playlist löschen" deleted it again.
+- Reviews: `/simplify` had the playlist's rows built once per redraw again (a regression of
+  `playlist-rows-built-once-per-row`) and the filter computed once. Codex found three, fixed: a
+  failure over a non-empty playlist was hidden, a column sorted back by # stayed unmovable, and
+  New Playlist needed a selection.
