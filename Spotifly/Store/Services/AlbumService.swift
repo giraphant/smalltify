@@ -151,8 +151,12 @@ final class AlbumService {
     func saveAlbumToLibrary(albumId: String) async throws {
         try await partnerAPI.addToLibrary(uris: ["spotify:album:\(albumId)"])
 
-        // Update store on success
+        // Update store on success: first, where the newest goes; in any other order, where
+        // Spotify sorts it, which only reading the list again tells.
         store.addAlbumToUserLibrary(albumId)
+        if sort != .recentlyAdded {
+            try? await loadUserAlbums(forceRefresh: true)
+        }
     }
 
     /// Remove an album from the user's library
