@@ -166,7 +166,7 @@ struct PlaylistDetailView: View {
                     currentSection: .playlists,
                     selectionId: playlistId,
                     // Only one's own playlist takes a move.
-                    reorder: isOwner ? { uid, index in move(uid: uid, toInsertionIndex: index) } : nil,
+                    reorder: isOwner ? { @MainActor @Sendable uid, index in move(uid: uid, toInsertionIndex: index) } : nil,
                 ) { row in
                     Task {
                         await playbackViewModel.play(uriOrUrl: playlist.uri, trackIndex: row.number - 1, startingAtUri: row.track.uri)
