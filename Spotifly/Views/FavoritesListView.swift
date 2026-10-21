@@ -45,6 +45,14 @@ struct FavoritesListView: View {
             } else {
                 VStack(spacing: 0) {
                     header
+                    // A later page that failed leaves the list short, which sorting and the filter
+                    // would hide; it says so, with a retry, over the rows there are.
+                    if let failure = store.favoritesPagination.failure {
+                        InlineLoadError(failure: failure) {
+                            await trackService.loadAllFavorites()
+                        }
+                        .padding(.bottom, 8)
+                    }
                     TrackTable(
                         rows: rows,
                         columns: [.number, .album, .added],
@@ -66,6 +74,10 @@ struct FavoritesListView: View {
             if store.favoriteTracks.isEmpty, !store.favoritesPagination.isLoading {
                 await loadFavorites()
             }
+        }
+        // Whenever pages are pending, on opening and again after a refresh, which starts over
+        // with the first.
+        .task(id: store.favoritesPagination.hasMore && store.favoritesPagination.isLoaded) {
             await trackService.loadAllFavorites()
         }
     }
