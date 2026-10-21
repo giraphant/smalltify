@@ -1,6 +1,7 @@
 # Redesign: Profil
 
-Status: **Open**, planned 2026-10-21. Twelfth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #216. Twelfth of the stacked redesign PRs. Signing out itself is
+not tried: it would need a new sign-in, which is the user's
 Components: `Spotifly/Views/UserProfileView.swift`, `Spotifly/*.lproj/Localizable.strings`
 Found: 2026-10-21, `design_handoff_spotifly_macos/README.md` ("Profil"),
 `design/native/Screens.jsx` (`NProfile`)
@@ -45,3 +46,17 @@ it.
 - Run the Debug build: the page with a profile; copy the id; open Abmelden's confirmation and
   cancel it (signing out would need a new sign-in, which is the user's to do); Einstellungen
   opens the settings window.
+
+### Result
+
+- Live: the page as the handoff draws it, the avatar and name without a card (the header of an
+  empty section) and Abmelden in red under the footer; the copy button put the user id on the
+  pasteboard; Abmelden's confirmation opened and was cancelled; Einstellungen opened the
+  settings window.
+- `/simplify`: one `NSPasteboard.copy` for the three places that copy; `playerBarClearance()`
+  for every form and table, which gave recent searches and the profile the bar's room they
+  lacked; the form at its own width, as Speakers has it; the English "Logout" now "Log Out",
+  matching the row. Not taken: dropping the name row, the copy button or the settings row,
+  which the handoff asks for.
+- `/code-review` raised the hard-coded red and the empty-section header, both kept for the
+  design; Codex found nothing.
