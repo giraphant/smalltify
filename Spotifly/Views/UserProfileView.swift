@@ -60,13 +60,13 @@ struct UserProfileView: View {
                             Text(verbatim: userProfile.id)
                                 .monospaced()
                                 .textSelection(.enabled)
-                            Button("action.copy", systemImage: "doc.on.doc") {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(userProfile.id, forType: .string)
+                            Button {
+                                NSPasteboard.copy(userProfile.id)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
                             }
-                            .labelStyle(.iconOnly)
                             .buttonStyle(.borderless)
-                            .help("action.copy")
+                            .named("action.copy")
                         }
                     }
 
@@ -108,8 +108,7 @@ struct UserProfileView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(maxWidth: 640)
-        .frame(maxWidth: .infinity)
+        .playerBarClearance()
         .navigationTitle("nav.profile")
         .confirmationDialog("profile.logout.title", isPresented: $showLogoutConfirmation) {
             Button("auth.logout", role: .destructive, action: onLogout)

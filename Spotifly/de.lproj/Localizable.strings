@@ -68,6 +68,7 @@
 
 /* Common Actions */
 "action.play" = "Wiedergeben";
+"action.copy" = "Kopieren";
 "action.copy_link" = "Link kopieren";
 "action.pause" = "Pause";
 "action.more" = "Weitere Optionen";
@@ -320,7 +321,6 @@
 "profile.logout" = "Abmelden …";
 "profile.logout.title" = "Von Spotify abmelden?";
 "profile.logout.message" = "Du kannst dich jederzeit wieder anmelden.";
-"action.copy" = "Kopieren";
 
 // Die Autorisierung: Anmeldung auf dem Login-Screen, Wiedergabe-Freigabe überall sonst
 "auth.connect_cancel" = "Warte auf deinen Browser — abbrechen";

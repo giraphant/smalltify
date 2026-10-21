@@ -68,6 +68,7 @@
 
 /* Common Actions */
 "action.play" = "Lire";
+"action.copy" = "Copier";
 "action.copy_link" = "Copier le lien";
 "action.pause" = "Pause";
 "action.more" = "Plus d'options";
@@ -320,7 +321,6 @@
 "profile.logout" = "Se déconnecter…";
 "profile.logout.title" = "Se déconnecter de Spotify ?";
 "profile.logout.message" = "Vous pouvez vous reconnecter à tout moment.";
-"action.copy" = "Copier";
 
 // L'autorisation : la connexion sur l'écran de login, la relance de la lecture ailleurs
 "auth.connect_cancel" = "En attente de votre navigateur — annuler";
