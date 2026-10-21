@@ -1,6 +1,6 @@
 # Redesign: Einstellungen
 
-Status: **Open**, planned 2026-10-21. Fourteenth and last of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #218. Fourteenth and last of the stacked redesign PRs
 Components: `Spotifly/Views/PreferencesView.swift`, `Spotifly/SpotifyPlayer.swift`,
 `Spotifly/*.lproj/Localizable.strings`
 Found: 2026-10-21, `design_handoff_spotifly_macos/README.md` ("Settings window")
@@ -38,7 +38,7 @@ Left out, each because nothing in the app would act on it:
   under them the note that a change applies when playback restarts. `Bitrate`'s English
   display names go: the picker shows the rate.
 - Kurzbefehle: a read-only list, `LabeledContent` per shortcut, named as its menu item names
-  it: Abspielen / Pause (Leertaste), next and previous (⌘→ / ⌘←), Lauter / Leiser (⌘↑ / ⌘↓),
+  it, from one table (`AppShortcut`) the menus bind too: Abspielen / Pause (Leertaste), next and previous (⌘→ / ⌘←), Lauter / Leiser (⌘↑ / ⌘↓),
   Track liken (⌘L), Suchen (⌘F), Seitenleiste (⌃⌘S), Jetzt läuft (⌥⌘I), Mini-Player (⌥⌘M),
   Zurück / Vorwärts (⌘[ / ⌘]), Favoriten … Künstler (⌘1–⌘4), Aktualisieren (⌘R),
   Einstellungen (⌘,).
@@ -49,3 +49,16 @@ Left out, each because nothing in the app would act on it:
 - Build, unit tests.
 - Run the Debug build: open the window (⌘,), each tab; switch the appearance and back; change
   the quality and back.
+
+### Result
+
+- Live: the window at 600 pt, each tab its own height (Allgemein a single row, Wiedergabe two
+  and the note, Kurzbefehle scrolling), the version and GitHub link at each foot; Hell restyled
+  the window and was set back to System; the quality, 320 kbit/s, was left as it was.
+- `/simplify`: the shortcut list was a hand-kept copy of the menus' bindings; `AppShortcut` is
+  now the one table both read. The playback tab no longer writes a change twice or re-applies
+  both settings when it appears; the version comes from `DeviceInfo.appVersion`.
+- Kept: the fixed tab heights, as a grouped form sizes to no content of its own, and the
+  footer under each tab, since under the `TabView` the window took the tallest tab's height.
+  `/code-review` raised both, and the system-bound rows (⌃⌘S, ⌘,) the table only lists; Codex
+  found nothing.
