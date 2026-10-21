@@ -56,10 +56,7 @@ struct ArtistDetailView: View {
     }
 
     private func artistContent(_ artist: Artist) -> some View {
-        // The group's releases, looked up once per redraw.
-        let releases = (store.albums(forArtist: artistId) ?? []).filter { group.contains($0) }
-
-        return ScrollView {
+        ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header(artist)
 
@@ -80,17 +77,26 @@ struct ArtistDetailView: View {
                         .padding()
                 } else if let failure {
                     InlineLoadError(failure: failure) { await loadArtist() }
-                } else if releases.isEmpty {
-                    Text("artist.discography.empty")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 28)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16, alignment: .top)], spacing: 18) {
-                        ForEach(releases) { album in
-                            AlbumCard(album: album, subtitle: album.releaseDate.map { String($0.prefix(4)) } ?? "", size: 150)
-                        }
-                    }
-                    .padding(.horizontal, 28)
+                    releasesGrid
+                }
+            }
+        }
+    }
+
+    /// The chosen group's releases, or a line saying there are none.
+    @ViewBuilder
+    private var releasesGrid: some View {
+        let releases = (store.albums(forArtist: artistId) ?? []).filter(group.contains)
+
+        if releases.isEmpty {
+            Text("artist.discography.empty")
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 28)
+        } else {
+            CardGrid {
+                ForEach(releases) { album in
+                    AlbumCard(album: album, subtitle: album.releaseYear ?? "", size: 150)
                 }
             }
         }
@@ -100,33 +106,25 @@ struct ArtistDetailView: View {
         let isFollowed = store.userArtistIds.contains(artistId)
 
         return DetailHeader(kind: String(localized: "detail.kind.artist"), title: artist.name) {
-            Artwork(images: artist.images, size: 132, shape: AnyShape(.circle), symbol: "person.fill", symbolFont: .system(size: 48))
+            Artwork.detailHeader(artist.images, shape: AnyShape(.circle), symbol: "person.fill")
         } metadata: {
             EmptyView()
         } actions: {
-            Button {
+            PlayAndShuffleButtons {
                 Task { await playbackViewModel.play(uriOrUrl: artist.uri) }
-            } label: {
-                Label("detail.play", systemImage: "play.fill")
             }
-            .buttonStyle(.borderedProminent)
 
-            Button {
-                if isFollowed {
-                    showUnfollowConfirmation = true
-                } else {
-                    Task {
-                        do {
-                            try await artistService.followArtist(artistId: artistId)
-                        } catch {
-                            failure = LoadFailure(message: String(localized: "error.follow_artist \(error.localizedDescription)"))
-                        }
+            LibraryToggleButton(isOn: isFollowed, onTitle: "detail.following", offTitle: "detail.follow") {
+                Task {
+                    do {
+                        try await artistService.followArtist(artistId: artistId)
+                    } catch {
+                        failure = LoadFailure(message: String(localized: "error.follow_artist \(error.localizedDescription)"))
                     }
                 }
-            } label: {
-                Label(isFollowed ? "detail.following" : "detail.follow", systemImage: isFollowed ? "checkmark" : "plus")
+            } confirmRemoval: {
+                showUnfollowConfirmation = true
             }
-            .buttonStyle(.bordered)
         }
     }
 

@@ -177,8 +177,6 @@
 "home.show_all" = "Alle anzeigen";
 "startpage.error" = "Startseite konnte nicht geladen werden";
 
-/* Sections */
-
 /* Metadata */
 "metadata.by_owner" = "Von %@";
 "metadata.separator" = "•";

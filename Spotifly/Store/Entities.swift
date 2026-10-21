@@ -151,6 +151,11 @@ struct Album: Identifiable, Hashable, Encodable {
         tracksLoaded ? trackIds.count : (_knownTrackCount ?? 0)
     }
 
+    /// The year the release date starts with, which Spotify gives as a year, a month or a day.
+    var releaseYear: String? {
+        releaseDate.map { String($0.prefix(4)) }.flatMap { Int($0) != nil ? $0 : nil }
+    }
+
     /// Memberwise initializer with all fields
     init(
         id: String,

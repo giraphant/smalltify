@@ -271,11 +271,10 @@ private struct LoggedInContextToolbarActions: View {
 private struct ToolbarActionButton: View {
     let title: LocalizedStringKey
     let systemImage: String
-    var role: ButtonRole?
     let action: () -> Void
 
     var body: some View {
-        Button(role: role, action: action) {
+        Button(action: action) {
             Label(title, systemImage: systemImage)
         }
         .labelStyle(.iconOnly)
