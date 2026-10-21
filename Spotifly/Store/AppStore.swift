@@ -419,7 +419,8 @@ final class AppStore {
     /// rather than per page, so two pages can each name the same relinked recording.
     func appendSavedTrackIds(_ ids: [String], addedAt: [String: Date] = [:]) {
         savedTrackIds = (savedTrackIds + ids).uniqued()
-        favoriteAddedAt.merge(addedAt) { old, _ in old }
+        // A track a later page names again keeps its earlier addition, as within a page.
+        favoriteAddedAt.merge(addedAt) { min($0, $1) }
     }
 
     // MARK: - Favorite Actions
@@ -430,6 +431,8 @@ final class AppStore {
         resolvedFavoriteTrackIds.insert(trackId)
         if !savedTrackIds.contains(trackId) {
             savedTrackIds.insert(trackId, at: 0)
+            // Added now, as Liked Songs will say when it is read again.
+            favoriteAddedAt[trackId] = Date()
         }
     }
 
@@ -438,6 +441,7 @@ final class AppStore {
         favoriteTrackIds.remove(trackId)
         resolvedFavoriteTrackIds.insert(trackId)
         savedTrackIds.removeAll { $0 == trackId }
+        favoriteAddedAt[trackId] = nil
     }
 
     /// Update favorite status for multiple tracks (from API check)
