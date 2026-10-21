@@ -130,6 +130,7 @@
 "startpage.empty.description" = "Spotify stellt diese Seite aus dem zusammen, was du hörst.";
 "home.recently_played" = "Zuletzt gehört";
 "home.top_tracks" = "Deine Top-Titel";
+"home.top_content_failed" = "Deine Top-Titel konnten nicht geladen werden.";
 "home.range" = "Zeitraum";
 "home.range.short" = "4 Wochen";
 "home.range.mid" = "6 Monate";

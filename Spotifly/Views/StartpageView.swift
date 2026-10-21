@@ -21,6 +21,7 @@ struct StartpageView: View {
 
     /// The top tracks' range, kept across launches.
     @AppStorage("startpageTopTracksRange") private var range: TopContentRange = .mid
+    @State private var topContentFailed = false
 
     /// How many playlists the row shows; "Alle anzeigen" opens the rest.
     private static let playlistLimit = 9
@@ -91,8 +92,16 @@ struct StartpageView: View {
         }
         // Tracks and artists, both over the picker's range.
         .task(id: range) {
-            await homeService.loadTopContent(range: range)
+            await loadTopContent()
         }
+    }
+
+    /// Loads the picker's range, and remembers when that left it absent: a failed load stores
+    /// nothing, and the section would otherwise wait forever.
+    private func loadTopContent() async {
+        topContentFailed = false
+        await homeService.loadTopContent(range: range)
+        topContentFailed = store.topContent[range] == nil && !Task.isCancelled
     }
 
     // MARK: - Sections
@@ -157,7 +166,16 @@ struct StartpageView: View {
     @ViewBuilder
     private var topTracks: some View {
         let tracks = topTrackList
-        if tracks.isEmpty {
+        if topContentFailed {
+            HStack {
+                Text("home.top_content_failed")
+                    .foregroundStyle(.secondary)
+                Button("action.try_again") {
+                    Task { await loadTopContent() }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 60)
+        } else if store.topContent[range] == nil {
             ProgressView()
                 .controlSize(.small)
                 .frame(maxWidth: .infinity, minHeight: 60)
