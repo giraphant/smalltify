@@ -119,8 +119,8 @@ struct Album: Identifiable, Hashable, Encodable {
     let name: String
     let uri: String
     let images: ImageSet
-    let releaseDate: String?
-    let albumType: String?
+    var releaseDate: String?
+    var albumType: String?
 
     // Relationships
     let artistId: String?
