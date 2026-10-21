@@ -80,7 +80,11 @@ actor StreamingPlayerSink: AudioSink {
             if ahead < Self.aheadTarget || ((output.isWaitingForData || starved) && ahead < Self.aheadLimit) {
                 return .accepted
             }
-            try? await Task.sleep(for: .milliseconds(50))
+            // Asleep until a second under the target, so the decode fills that second in one
+            // go: checked every 50 ms, the wait woke the app 12 times a second against the
+            // renderer's 3. A starving player is noticed within the second.
+            let untilRoom = min(1, max(0.05, ahead - (Self.aheadTarget - 1)))
+            try? await Task.sleep(for: .seconds(untilRoom))
         }
     }
 
