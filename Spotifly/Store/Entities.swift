@@ -399,50 +399,54 @@ enum TrackProvider: String, Codable {
 /// Each list is deduplicated: relinking can give two track results one market id (`AGENTS.md`,
 /// "Track identity is the market id"), and the page keys its rows by id.
 struct SearchResults: Encodable {
-    private(set) var albumIds: [String]
-    private(set) var artistIds: [String]
-    private(set) var playlistIds: [String]
-    private(set) var trackIds: [String]
-    /// The scopes a further page found nothing more in, whose "Mehr laden" goes.
-    private(set) var exhaustedScopes: Set<SearchScope> = []
+    private(set) var ids: [SearchKind: [String]] = [:]
+    /// Where each kind's next page starts: every result Spotify has sent, duplicates included,
+    /// as `PaginationState` counts its offset.
+    private(set) var nextOffset: [SearchKind: Int] = [:]
+    /// The kinds whose last page came back short, so there is nothing more to load.
+    private(set) var exhausted: Set<SearchKind> = []
 
-    /// One scope's ids, in the order found.
-    func ids(for scope: SearchScope) -> [String] {
-        switch scope {
-        case .tracks: trackIds
-        case .artists: artistIds
-        case .albums: albumIds
-        case .playlists: playlistIds
-        case .all: []
+    var trackIds: [String] {
+        ids(for: .tracks)
+    }
+
+    var albumIds: [String] {
+        ids(for: .albums)
+    }
+
+    var artistIds: [String] {
+        ids(for: .artists)
+    }
+
+    var playlistIds: [String] {
+        ids(for: .playlists)
+    }
+
+    /// One kind's ids, in the order found.
+    func ids(for kind: SearchKind) -> [String] {
+        ids[kind] ?? []
+    }
+
+    /// Adds a page of one kind: its ids, leaving out those already listed, and how many results
+    /// Spotify sent for it, which a page short of `pageSize` marks as the last.
+    mutating func append(_ newIds: [String], to kind: SearchKind, sent: Int, pageSize: Int) {
+        let known = Set(ids(for: kind))
+        ids[kind, default: []] += newIds.uniqued().filter { !known.contains($0) }
+        nextOffset[kind, default: 0] += sent
+        if sent < pageSize {
+            exhausted.insert(kind)
         }
     }
 
-    /// Appends a further page of one scope, leaving out ids already listed. A page that adds
-    /// nothing marks the scope exhausted.
-    mutating func append(_ ids: [String], to scope: SearchScope) {
-        let known = Set(self.ids(for: scope))
-        let new = ids.uniqued().filter { !known.contains($0) }
-        if new.isEmpty {
-            exhaustedScopes.insert(scope)
-        }
-        switch scope {
-        case .tracks: trackIds += new
-        case .artists: artistIds += new
-        case .albums: albumIds += new
-        case .playlists: playlistIds += new
-        case .all: break
-        }
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case albumIds, artistIds, playlistIds, trackIds
-    }
+    init() {}
 
     init(albums: [Album], artists: [Artist], playlists: [Playlist], tracks: [Track]) {
-        albumIds = albums.map(\.id).uniqued()
-        artistIds = artists.map(\.id).uniqued()
-        playlistIds = playlists.map(\.id).uniqued()
-        trackIds = tracks.map(\.id).uniqued()
+        ids = [
+            .albums: albums.map(\.id).uniqued(),
+            .artists: artists.map(\.id).uniqued(),
+            .playlists: playlists.map(\.id).uniqued(),
+            .tracks: tracks.map(\.id).uniqued(),
+        ]
     }
 }
 

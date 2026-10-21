@@ -25,8 +25,8 @@ final class SearchService {
     /// How many results a further page of one scope asks for.
     static let pageSize = 20
 
-    /// The scopes whose further page is loading, so a second press does not ask again.
-    private(set) var loadingMore: Set<SearchScope> = []
+    /// The kinds whose further page is loading, so a second press does not ask again.
+    private(set) var loadingMore: Set<SearchKind> = []
 
     init(store: AppStore, partner: PartnerAPI = PartnerAPI(), defaults: UserDefaults = .standard) {
         self.store = store
@@ -57,39 +57,46 @@ final class SearchService {
 
     // MARK: - More results
 
-    /// Loads the next page of one scope of `query`'s results and appends it.
-    func loadMore(query: String, scope: SearchScope) async {
-        guard scope != .all, !loadingMore.contains(scope),
-              let offset = store.searchResults(for: query)?.ids(for: scope).count
+    /// Loads the next page of one kind of `query`'s results and appends it.
+    func loadMore(query: String, kind: SearchKind) async {
+        guard !loadingMore.contains(kind),
+              let results = store.searchResults(for: query), !results.exhausted.contains(kind)
         else { return }
-        loadingMore.insert(scope)
-        defer { loadingMore.remove(scope) }
+        loadingMore.insert(kind)
+        defer { loadingMore.remove(kind) }
 
         do {
-            let ids: [String]
-            switch scope {
-            case .tracks:
-                let tracks = try await partner.searchTracks(query, offset: offset, limit: Self.pageSize).compactMap(Track.init(pathfinder:))
-                store.upsertTracks(tracks)
-                ids = tracks.map(\.id)
-            case .artists:
-                let artists = try await partner.searchArtists(query, offset: offset, limit: Self.pageSize).compactMap(Artist.init(pathfinder:))
-                store.upsertArtists(artists)
-                ids = artists.map(\.id)
-            case .albums:
-                let albums = try await partner.searchAlbums(query, offset: offset, limit: Self.pageSize).compactMap(Album.init(pathfinder:))
-                store.upsertAlbums(albums)
-                ids = albums.map(\.id)
-            case .playlists:
-                let playlists = try await partner.searchPlaylists(query, offset: offset, limit: Self.pageSize).compactMap(Playlist.init(pathfinder:))
-                store.upsertPlaylists(playlists)
-                ids = playlists.map(\.id)
-            case .all:
-                return
-            }
-            store.appendSearchResults(ids, to: scope, for: query)
+            let page = try await fetch(kind, query: query, offset: results.nextOffset[kind] ?? 0)
+            store.appendSearchResults(page.ids, to: kind, sent: page.sent, pageSize: Self.pageSize, for: query)
         } catch {
-            debugLog("SearchService", "More \(scope) for \(query) failed: \(error)")
+            debugLog("SearchService", "More \(kind) for \(query) failed: \(error)")
+        }
+    }
+
+    /// One page of one kind: searched, its entities upserted, and their ids returned with how
+    /// many results Spotify sent, which an unreadable one makes more than the ids.
+    private func fetch(_ kind: SearchKind, query: String, offset: Int) async throws -> (ids: [String], sent: Int) {
+        switch kind {
+        case .tracks:
+            let found = try await partner.searchTracks(query, offset: offset, limit: Self.pageSize)
+            let tracks = found.compactMap(Track.init(pathfinder:))
+            store.upsertTracks(tracks)
+            return (tracks.map(\.id), found.count)
+        case .albums:
+            let found = try await partner.searchAlbums(query, offset: offset, limit: Self.pageSize)
+            let albums = found.compactMap(Album.init(pathfinder:))
+            store.upsertAlbums(albums)
+            return (albums.map(\.id), found.count)
+        case .artists:
+            let found = try await partner.searchArtists(query, offset: offset, limit: Self.pageSize)
+            let artists = found.compactMap(Artist.init(pathfinder:))
+            store.upsertArtists(artists)
+            return (artists.map(\.id), found.count)
+        case .playlists:
+            let found = try await partner.searchPlaylists(query, offset: offset, limit: Self.pageSize)
+            let playlists = found.compactMap(Playlist.init(pathfinder:))
+            store.upsertPlaylists(playlists)
+            return (playlists.map(\.id), found.count)
         }
     }
 
@@ -126,20 +133,15 @@ final class SearchService {
     /// four categories from one request — sequentially this would be four round-trips of
     /// latency for what the user experiences as a single search.
     private func partnerSearch(query: String) async throws -> SearchResults {
-        async let trackAnswer = partner.searchTracks(query, limit: 20)
-        async let albumAnswer = partner.searchAlbums(query, limit: 20)
-        async let artistAnswer = partner.searchArtists(query, limit: 20)
-        async let playlistAnswer = partner.searchPlaylists(query, limit: 20)
+        async let tracks = fetch(.tracks, query: query, offset: 0)
+        async let albums = fetch(.albums, query: query, offset: 0)
+        async let artists = fetch(.artists, query: query, offset: 0)
+        async let playlists = fetch(.playlists, query: query, offset: 0)
 
-        let tracks = try await trackAnswer.compactMap(Track.init(pathfinder:))
-        let albums = try await albumAnswer.compactMap(Album.init(pathfinder:))
-        let artists = try await artistAnswer.compactMap(Artist.init(pathfinder:))
-        let playlists = try await playlistAnswer.compactMap(Playlist.init(pathfinder:))
-
-        store.upsertTracks(tracks)
-        store.upsertAlbums(albums)
-        store.upsertArtists(artists)
-        store.upsertPlaylists(playlists)
-        return SearchResults(albums: albums, artists: artists, playlists: playlists, tracks: tracks)
+        var results = SearchResults()
+        for (kind, page) in try await [(SearchKind.tracks, tracks), (.albums, albums), (.artists, artists), (.playlists, playlists)] {
+            results.append(page.ids, to: kind, sent: page.sent, pageSize: Self.pageSize)
+        }
+        return results
     }
 }

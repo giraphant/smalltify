@@ -162,7 +162,6 @@
 "metadata.by_owner" = "Par %@";
 "metadata.separator" = "•";
 
-/* Show All Button */
 
 /* Speakers */
 "speakers.type_active %@" = "%@ · Actif";

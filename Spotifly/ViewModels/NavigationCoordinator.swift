@@ -145,7 +145,7 @@ final class NavigationCoordinator {
 
     /// Shows one kind of the shown search's results, or all of them, as a step of its own in
     /// the history.
-    func showSearchScope(_ scope: SearchScope) {
+    func showSearchScope(_ scope: SearchKind?) {
         guard displayedSearchQuery != nil, scope != current.searchScope else { return }
         var route = current
         route.searchScope = scope
@@ -333,8 +333,8 @@ final class NavigationCoordinator {
 
     /// An entity missing from the store falls back to the route's own section.
     private func title(for route: Route) -> String {
-        if route.searchScope != .all {
-            return route.searchScope.title
+        if let scope = route.searchScope {
+            return scope.title
         }
 
         let sectionTitle = route.section?.title ?? String(localized: "app.name")

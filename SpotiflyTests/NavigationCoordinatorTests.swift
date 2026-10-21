@@ -143,7 +143,7 @@ struct NavigationCoordinatorTests {
         coordinator.navigateToSearchResults(query: "q")
         coordinator.showSearchScope(.tracks)
         coordinator.selectNavigationItem(.favorites)
-        #expect(coordinator.backNavigationTitle == SearchScope.tracks.title)
+        #expect(coordinator.backNavigationTitle == SearchKind.tracks.title)
     }
 
     /// The entity is named by its section, never by its kind.

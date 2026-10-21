@@ -7,29 +7,11 @@
 
 import SwiftUI
 
-/// Searches for a query through the toolbar's field, as if it had been typed there. A struct, as
-/// `DismissAction` is, so the environment can compare it: every instance does the same thing.
-struct RunSearchAction: Equatable {
-    let run: (String) -> Void
-
-    func callAsFunction(_ query: String) {
-        run(query)
-    }
-
-    static func == (_: Self, _: Self) -> Bool {
-        true
-    }
-}
-
-extension EnvironmentValues {
-    @Entry var runSearch = RunSearchAction { _ in }
-}
-
 /// The search page with nothing typed: the searches made last, which run again on a click, kept
 /// on this Mac only. The toolbar's field takes the focus as it opens.
 struct SearchHomeView: View {
     @Environment(SearchService.self) private var searchService
-    @Environment(\.runSearch) private var runSearch
+    @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     var body: some View {
         Group {
@@ -45,7 +27,11 @@ struct SearchHomeView: View {
                         ForEach(searchService.recentSearches, id: \.self) { query in
                             HStack {
                                 Button {
-                                    runSearch(query)
+                                    // The toolbar's field follows the search shown.
+                                    Task {
+                                        await searchService.search(query: query)
+                                        navigationCoordinator.navigateToSearchResults(query: query)
+                                    }
                                 } label: {
                                     Text(verbatim: query)
                                         .frame(maxWidth: .infinity, alignment: .leading)

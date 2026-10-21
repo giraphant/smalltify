@@ -7,9 +7,8 @@
 
 import Foundation
 
-/// The kinds of result a search page shows: all of them a few each, or one of them in full.
-enum SearchScope: Hashable, CaseIterable {
-    case all
+/// The kinds of result a search finds, each of which its page can show alone.
+enum SearchKind: String, Hashable, CaseIterable, Encodable, CodingKeyRepresentable {
     case tracks
     case artists
     case albums
@@ -39,9 +38,9 @@ struct Route: Hashable {
     var selection: Selection?
     /// A search route's query, or nil for the search page before a search: recent searches.
     var query: String?
-    /// Which kinds a search route shows: a step of its own in the history, as the web player's
-    /// search tabs are, drawn from the same search's results.
-    var searchScope = SearchScope.all
+    /// The one kind a search route shows, or nil for all of them a few each: a step of its own
+    /// in the history, as the web player's search tabs are, drawn from the same search's results.
+    var searchScope: SearchKind?
 
     static let startpage = Route(section: .startpage)
 }

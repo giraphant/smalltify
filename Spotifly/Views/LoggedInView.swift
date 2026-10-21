@@ -61,6 +61,12 @@ struct LoggedInView: View {
                 .searchable(text: $searchText, prompt: Text("search.prompt"))
                 .onSubmit(of: .search) { performSearch() }
                 .onChange(of: searchText) { _, newValue in handleSearchTextChange(newValue) }
+                // The field shows the search on screen, as Back and a recent search change it.
+                .onChange(of: navigationCoordinator.displayedSearchQuery) { _, query in
+                    if let query, query != searchText {
+                        searchText = query
+                    }
+                }
             }
         }
         .background(windowState.isMiniPlayerMode ? Color(NSColor.windowBackgroundColor) : Color.clear)
@@ -87,11 +93,6 @@ struct LoggedInView: View {
         .modifier(LoggedInLifecycleModifier())
         .environment(session: session)
         .environment(navigationCoordinator)
-        // A recent search runs again through the toolbar's field, which this view owns.
-        .environment(\.runSearch, RunSearchAction { query in
-            searchText = query
-            performSearch()
-        })
         // Scene values, which the menu sees whenever the window is key, whatever has focus
         // inside it. The Navigate menu's ⌘1–⌘4, ⌘[ and ⌘] are the only registration of those
         // shortcuts.
