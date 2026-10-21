@@ -1,8 +1,8 @@
 # On a HomePod, the player can stop answering pause and seek
 
-Status: **Open**, 2026-10-21. A likely cause is addressed on `airplay/stalls`: the output writes
-30 s ahead, as far as the player reads, instead of 10 s. Checked on this Mac only; not yet on a
-HomePod, which needs the AirPlay picker and so an unlocked screen.
+Status: **Open**, 2026-10-21. A likely cause is addressed in #220 (`airplay/stalls`): the output
+writes 30 s ahead, as far as the player reads, instead of 10 s. Checked on this Mac only; not yet
+on a HomePod, which needs the AirPlay picker and so an unlocked screen.
 Components: `Spotifly/AudioOutput.swift`
 Found: 2026-10-21, rerunning #219's checks on the Küche HomePod: a seek took 18 s, and the app
 crashed when it landed (the crash is fixed on #219, 10a9e89).
