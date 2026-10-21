@@ -154,6 +154,12 @@ struct PlaylistDetailView: View {
                 InlineLoadError(failure: failure) { await reloadTracks() }
                     .frame(maxHeight: .infinity, alignment: .top)
             } else {
+                // A failed edit, delete, unfollow or move over the rows there are, with a retry
+                // that reads the playlist again.
+                if let failure {
+                    InlineLoadError(failure: failure) { await reloadTracks() }
+                        .padding(.bottom, 8)
+                }
                 TrackTable(
                     rows: tableRows(rows),
                     columns: [.number, .album],
