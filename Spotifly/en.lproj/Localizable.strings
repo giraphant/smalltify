@@ -234,7 +234,6 @@
 "preferences.shortcuts" = "Shortcuts";
 "preferences.shortcut.sidebar" = "Show/Hide Sidebar";
 "preferences.shortcut.space" = "Space";
-"preferences.bitrate" = "%d kbit/s";
 "preferences.streaming_quality" = "Streaming Quality";
 "preferences.gapless_playback" = "Gapless Playback";
 "preferences.restart_note" = "Changes take effect when playback restarts.";

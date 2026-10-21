@@ -234,7 +234,6 @@
 "preferences.shortcuts" = "Kurzbefehle";
 "preferences.shortcut.sidebar" = "Seitenleiste ein-/ausblenden";
 "preferences.shortcut.space" = "Leertaste";
-"preferences.bitrate" = "%d kbit/s";
 "preferences.streaming_quality" = "Streaming-Qualität";
 "preferences.gapless_playback" = "Lückenlose Wiedergabe";
 "preferences.restart_note" = "Änderungen werden bei Neustart der Wiedergabe wirksam.";

@@ -234,7 +234,6 @@
 "preferences.shortcuts" = "Raccourcis";
 "preferences.shortcut.sidebar" = "Afficher/masquer la barre latérale";
 "preferences.shortcut.space" = "Espace";
-"preferences.bitrate" = "%d kbit/s";
 "preferences.streaming_quality" = "Qualité audio";
 "preferences.gapless_playback" = "Lecture en continu";
 "preferences.restart_note" = "Les modifications prennent effet au redémarrage de la lecture.";

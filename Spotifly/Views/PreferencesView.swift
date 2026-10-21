@@ -83,23 +83,18 @@ private struct PlaybackSettingsView: View {
             Section {
                 Picker("preferences.streaming_quality", selection: Binding(
                     get: { selectedBitrate },
-                    set: { newValue in
-                        bitrateRawValue = Int(newValue.rawValue)
-                        SpotifyPlayer.setBitrate(newValue)
-                    },
+                    // The player stores it, and the storage tells this view.
+                    set: { SpotifyPlayer.setBitrate($0) },
                 )) {
                     ForEach(SpotifyPlayer.Bitrate.allCases) { bitrate in
-                        Text(verbatim: localizedNumberString("preferences.bitrate", bitrate.kilobitsPerSecond))
+                        Text(verbatim: "\(bitrate.kilobitsPerSecond) kbit/s")
                             .tag(bitrate)
                     }
                 }
 
                 Toggle("preferences.gapless_playback", isOn: Binding(
                     get: { gaplessEnabled },
-                    set: { newValue in
-                        gaplessEnabled = newValue
-                        SpotifyPlayer.setGapless(newValue)
-                    },
+                    set: { SpotifyPlayer.setGapless($0) },
                 ))
             } footer: {
                 Text("preferences.restart_note")
@@ -107,46 +102,19 @@ private struct PlaybackSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .onAppear {
-            // Sync UI with actual player settings
-            SpotifyPlayer.setBitrate(selectedBitrate)
-            SpotifyPlayer.setGapless(gaplessEnabled)
-        }
     }
 }
 
 // MARK: - Shortcuts
 
-/// The app's shortcuts, read-only, each named as its menu item is. The keys are the ones
-/// `SpotiflyCommands` and `SidebarCommands` set; a change there belongs here too.
+/// The app's shortcuts, read-only, from the table the menus bind (`AppShortcut`).
 private struct ShortcutsSettingsView: View {
-    private static let shortcuts: [(name: LocalizedStringKey, keys: String)] = [
-        ("menu.play_pause", String(localized: "preferences.shortcut.space")),
-        ("menu.next_track", "⌘→"),
-        ("menu.previous_track", "⌘←"),
-        ("menu.volume_up", "⌘↑"),
-        ("menu.volume_down", "⌘↓"),
-        ("menu.like_track", "⌘L"),
-        ("menu.search", "⌘F"),
-        ("preferences.shortcut.sidebar", "⌃⌘S"),
-        ("inspector.title", "⌥⌘I"),
-        ("mini_player.menu", "⌥⌘M"),
-        ("nav.back", "⌘["),
-        ("nav.forward", "⌘]"),
-        ("menu.favorites", "⌘1"),
-        ("menu.playlists", "⌘2"),
-        ("menu.albums", "⌘3"),
-        ("menu.artists", "⌘4"),
-        ("menu.refresh", "⌘R"),
-        ("nav.settings", "⌘,"),
-    ]
-
     var body: some View {
         Form {
-            ForEach(Self.shortcuts, id: \.keys) { shortcut in
-                LabeledContent(shortcut.name) {
-                    Text(verbatim: shortcut.keys)
-                        .monospaced()
+            ForEach(AppShortcut.allCases, id: \.self) { shortcut in
+                LabeledContent(shortcut.title) {
+                    Text(verbatim: shortcut.glyphs)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -159,10 +127,8 @@ private struct ShortcutsSettingsView: View {
 /// The version and where the source lives, under every tab.
 private struct VersionFooter: View {
     private var version: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = info?["CFBundleVersion"] as? String ?? "1"
-        return "\(short) (\(build))"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(DeviceInfo.appVersion) (\(build))"
     }
 
     var body: some View {

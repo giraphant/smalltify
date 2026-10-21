@@ -397,9 +397,9 @@ enum SpotifyPlayer {
 
     /// Streaming bitrate options
     enum Bitrate: UInt8, CaseIterable, Identifiable {
-        case low = 0 // 96 kbps
-        case normal = 1 // 160 kbps (default)
-        case high = 2 // 320 kbps
+        case low = 0
+        case normal = 1 // the default
+        case high = 2
 
         var id: UInt8 {
             rawValue
