@@ -98,10 +98,21 @@ private struct LoggedInContextToolbarActions: View {
                 artistToolbarActions(artist: artist)
             }
         case .playlists:
-            if let playlistId = navigationCoordinator.selectedPlaylistId,
-               let playlist = store.playlists[playlistId]
-            {
-                playlistToolbarActions(playlist: playlist)
+            // New Playlist with or without a playlist selected: an account with none needs it most.
+            HStack(spacing: 8) {
+                ToolbarActionButton(title: "playlist.new.title", systemImage: "plus") {
+                    showNewPlaylist = true
+                }
+
+                if let playlistId = navigationCoordinator.selectedPlaylistId,
+                   let playlist = store.playlists[playlistId]
+                {
+                    playlistToolbarActions(playlist: playlist)
+                }
+            }
+            // A new playlist opens as soon as it is made.
+            .newPlaylistPrompt(isPresented: $showNewPlaylist, trackId: nil, onAdded: {}) { created in
+                navigationCoordinator.selectPlaylist(created.id)
             }
         default:
             EmptyView()
@@ -167,13 +178,9 @@ private struct LoggedInContextToolbarActions: View {
         }
     }
 
-    /// New Playlist, Share, and a menu with the rest, as the handoff's playlist toolbar has it.
+    /// Share, and a menu with the rest, as the handoff's playlist toolbar has it.
     private func playlistToolbarActions(playlist: Playlist) -> some View {
         HStack(spacing: 8) {
-            ToolbarActionButton(title: "playlist.new.title", systemImage: "plus") {
-                showNewPlaylist = true
-            }
-
             if let link = SpotifyURI.webURL(playlist.uri).flatMap(URL.init(string:)) {
                 ShareLink(item: link) {
                     Label("action.share", systemImage: "square.and.arrow.up")
@@ -225,10 +232,6 @@ private struct LoggedInContextToolbarActions: View {
             }
             .labelStyle(.iconOnly)
             .help("action.more")
-        }
-        // A new playlist opens as soon as it is made.
-        .newPlaylistPrompt(isPresented: $showNewPlaylist, trackId: nil, onAdded: {}) { created in
-            navigationCoordinator.selectPlaylist(created.id)
         }
     }
 
