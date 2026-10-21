@@ -95,7 +95,9 @@ struct SpeakersView: View {
                         .opacity(isAirPlayEnabled ? 1 : 0.5)
                 } label: {
                     Text("speakers.output_device")
-                    if let name = outputDeviceName {
+                    // The Mac's default output, which is not where Spotifly plays once its own
+                    // player is routed elsewhere; nothing reports that player's route.
+                    if !SpotifyPlayer.usesAVPlayerOutput, let name = outputDeviceName {
                         Text(verbatim: name)
                     }
                 }
