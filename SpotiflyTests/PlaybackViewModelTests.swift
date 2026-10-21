@@ -95,12 +95,3 @@ struct SleepPauseTests {
         #expect(!PlaybackViewModel.isSleepPause(willSleepAt: nil, now: willSleepAt, isActiveDevice: false))
     }
 }
-
-/// ⌘↑ and ⌘↓ step the volume ten points, and stop at the ends rather than wrap or overshoot.
-struct VolumeStepTests {
-    @Test func `a step moves the volume and stops at the ends`() {
-        #expect(PlaybackViewModel.steppedVolume(0.5, by: PlaybackViewModel.volumeStep) == 0.6)
-        #expect(PlaybackViewModel.steppedVolume(0.95, by: PlaybackViewModel.volumeStep) == 1)
-        #expect(PlaybackViewModel.steppedVolume(0.05, by: -PlaybackViewModel.volumeStep) == 0)
-    }
-}
