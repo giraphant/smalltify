@@ -58,7 +58,7 @@ struct LoggedInView: View {
                 // Always-visible search field, attached to the NavigationSplitView
                 // itself — attaching it to an inner view inside the detail column
                 // does not surface the field in the window toolbar.
-                .searchable(text: $searchText)
+                .searchable(text: $searchText, prompt: Text("search.prompt"))
                 .onSubmit(of: .search) { performSearch() }
                 .onChange(of: searchText) { _, newValue in handleSearchTextChange(newValue) }
             }
@@ -87,6 +87,11 @@ struct LoggedInView: View {
         .modifier(LoggedInLifecycleModifier())
         .environment(session: session)
         .environment(navigationCoordinator)
+        // A recent search runs again through the toolbar's field, which this view owns.
+        .environment(\.runSearch, RunSearchAction { query in
+            searchText = query
+            performSearch()
+        })
         // Scene values, which the menu sees whenever the window is key, whatever has focus
         // inside it. The Navigate menu's ⌘1–⌘4, ⌘[ and ⌘] are the only registration of those
         // shortcuts.
@@ -178,9 +183,6 @@ struct LoggedInView: View {
     private func sidebarView() -> some View {
         SidebarView(
             selection: $navigationCoordinator.selectedNavigationItem,
-            // Or a failed search's page, while it shows: the selection is there.
-            hasSearchResults: navigationCoordinator.reopenableSearchQuery != nil
-                || navigationCoordinator.displayedSearchQuery != nil,
             userProfile: session.store.userProfile,
         )
         .navigationSplitViewColumnWidth(
@@ -217,8 +219,8 @@ struct LoggedInView: View {
         guard newValue.isEmpty else { return }
         session.searchService.clearFailure()
 
-        if navigationCoordinator.selectedNavigationItem == .searchResults {
-            navigationCoordinator.selectNavigationItem(.startpage)
+        if navigationCoordinator.displayedSearchQuery != nil {
+            navigationCoordinator.showSearchHome()
         }
     }
 

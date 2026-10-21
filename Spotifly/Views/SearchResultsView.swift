@@ -2,138 +2,175 @@
 //  SearchResultsView.swift
 //  Spotifly
 //
-//  Displays search results with horizontal scrolling sections
+//  A search's results, all kinds a few each or one kind in full.
 //
 
 import SwiftUI
 
+/// The results of one search, under the scope picker: "Alle" shows a few of each kind, a single
+/// scope all that have loaded and "Mehr laden" for the next page. A scope is a step in the
+/// history (`Route.searchScope`).
 struct SearchResultsView: View {
+    let query: String
     let searchResults: SearchResults
+    let scope: SearchScope
+
     @Environment(AppStore.self) private var store
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
     @Environment(TrackService.self) private var trackService
+    @Environment(SearchService.self) private var searchService
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
 
-    // The results as the tables hold them now. An id the tables no longer hold, such as a
-    // playlist deleted since the search, is left out.
+    /// How many of each kind "Alle" shows.
+    private static let overviewLimit = 5
 
+    /// The results as the tables hold them now. An id the tables no longer hold, such as a
+    /// playlist deleted since the search, is left out.
     private var tracks: [Track] {
-        searchResults.trackIds.compactMap { store.tracks[$0] }
+        limited(searchResults.trackIds.compactMap { store.tracks[$0] }, for: .tracks)
     }
 
     private var artists: [Artist] {
-        searchResults.artistIds.compactMap { store.artists[$0] }
+        limited(searchResults.artistIds.compactMap { store.artists[$0] }, for: .artists)
     }
 
     private var albums: [Album] {
-        searchResults.albumIds.compactMap { store.albums[$0] }
+        limited(searchResults.albumIds.compactMap { store.albums[$0] }, for: .albums)
     }
 
     private var playlists: [Playlist] {
-        searchResults.playlistIds.compactMap { store.playlists[$0] }
+        limited(searchResults.playlistIds.compactMap { store.playlists[$0] }, for: .playlists)
+    }
+
+    /// Nothing of a kind outside the scope, a few under "Alle", all of it under its own scope.
+    private func limited<Entity>(_ entities: [Entity], for kind: SearchScope) -> [Entity] {
+        switch scope {
+        case .all: Array(entities.prefix(Self.overviewLimit))
+        case kind: entities
+        default: []
+        }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Tracks section
-                if !tracks.isEmpty {
-                    tracksSection
-                }
-
-                // Artists section
-                if !artists.isEmpty {
-                    cardSection("section.artists") {
-                        ForEach(artists) { artist in
-                            ArtistCard(artist: artist)
-                        }
+            LazyVStack(alignment: .leading, spacing: 0) {
+                Picker("search.scope", selection: Binding(
+                    get: { scope },
+                    set: { navigationCoordinator.showSearchScope($0) },
+                )) {
+                    ForEach(SearchScope.allCases, id: \.self) { scope in
+                        Text(scope.title).tag(scope)
                     }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .padding(.horizontal, 28)
+                .padding(.top, 4)
 
-                // Albums section
-                if !albums.isEmpty {
-                    cardSection("section.albums") {
-                        ForEach(albums) { album in
-                            AlbumCard(album: album)
-                        }
+                if tracks.isEmpty, artists.isEmpty, albums.isEmpty, playlists.isEmpty {
+                    ContentUnavailableView {
+                        Label(String(localized: "search.no_results \(query)"), systemImage: "magnifyingglass")
+                    } description: {
+                        Text("search.no_results_description")
                     }
-                }
-
-                // Playlists section
-                if !playlists.isEmpty {
-                    cardSection("section.playlists") {
-                        ForEach(playlists) { playlist in
-                            PlaylistCard(playlist: playlist)
-                        }
-                    }
+                    .padding(.top, 40)
+                } else {
+                    results
                 }
             }
-            .padding(.vertical)
+            .padding(.bottom, 24)
         }
         .task(id: searchResults.trackIds) {
-            // Check favorite status for all search tracks
             await trackService.ensureFavoriteStatuses(trackIds: searchResults.trackIds)
         }
     }
 
-    // MARK: - Tracks Section
-
-    private var tracksSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("section.tracks")
-                    .font(.headline)
-
-                Spacer()
-
-                if tracks.count > 5 {
-                    Button {
-                        navigationCoordinator.showAllSearchTracks()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(localizedNumberString("show_all.tracks", tracks.count))
-                                .font(.subheadline)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.blue)
-                    }
-                    .buttonStyle(.plain)
+    @ViewBuilder
+    private var results: some View {
+        if !tracks.isEmpty {
+            header(SearchScope.tracks.title)
+            VStack(spacing: 0) {
+                ForEach(tracks.enumerated(), id: \.element.id) { index, track in
+                    TrackRow(
+                        track: track,
+                        index: index,
+                        currentlyPlayingURI: playbackViewModel.currentTrackUri,
+                        currentSection: .searchResults,
+                        onDoubleTap: {
+                            await playbackViewModel.playRadio(trackUri: track.uri)
+                        },
+                    )
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 12)
+        }
 
-            ScrollView(.horizontal) {
-                HStack(spacing: 12) {
-                    ForEach(tracks) { track in
-                        TrackCard(track: track)
-                    }
-                }
-                .padding(.horizontal)
+        if !artists.isEmpty {
+            header(SearchScope.artists.title)
+            cards(artists) { ArtistCard(artist: $0, size: 120) }
+        }
+
+        if !albums.isEmpty {
+            header(SearchScope.albums.title)
+            cards(albums) { AlbumCard(album: $0, size: 140) }
+        }
+
+        if !playlists.isEmpty {
+            header(SearchScope.playlists.title)
+            cards(playlists) {
+                PlaylistCard(playlist: $0, subtitle: localizedTextString("metadata.by_owner", $0.ownerName), size: 140)
             }
-            .scrollIndicators(.hidden)
+        }
+
+        if scope != .all, !searchResults.exhaustedScopes.contains(scope) {
+            Button("search.load_more") {
+                Task { await searchService.loadMore(query: query, scope: scope) }
+            }
+            .disabled(searchService.loadingMore.contains(scope))
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
         }
     }
 
-    // MARK: - Card Sections
+    private func header(_ title: String) -> some View {
+        Text(title)
+            .font(.title2.bold())
+            .padding(.horizontal, 28)
+            .padding(.top, 24)
+            .padding(.bottom, 10)
+    }
 
-    /// A heading over a horizontal row of cards — the shape three of the four sections have
-    /// exactly. Tracks keeps its own because its heading also carries the "show all" link.
-    private func cardSection(
-        _ title: LocalizedStringKey,
-        @ViewBuilder cards: () -> some View,
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-                .padding(.horizontal)
-
+    /// A row of cards under "Alle", a wrapping grid under the kind's own scope, where there can
+    /// be dozens.
+    @ViewBuilder
+    private func cards<Entity: Identifiable>(_ entities: [Entity], card: @escaping (Entity) -> some View) -> some View {
+        if scope == .all {
             ScrollView(.horizontal) {
-                HStack(spacing: 12) {
-                    cards()
+                LazyHStack(alignment: .top, spacing: 16) {
+                    ForEach(entities) { card($0) }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 28)
             }
             .scrollIndicators(.hidden)
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16, alignment: .top)], spacing: 18) {
+                ForEach(entities) { card($0) }
+            }
+            .padding(.horizontal, 28)
+        }
+    }
+}
+
+extension SearchScope {
+    /// What the scope picker and its heading call it.
+    var title: String {
+        switch self {
+        case .all: String(localized: "search.scope.all")
+        case .tracks: String(localized: "search.scope.tracks")
+        case .artists: String(localized: "search.scope.artists")
+        case .albums: String(localized: "search.scope.albums")
+        case .playlists: String(localized: "search.scope.playlists")
         }
     }
 }
