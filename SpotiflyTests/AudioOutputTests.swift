@@ -1,8 +1,8 @@
 //
-//  StreamingPlayerSinkTests.swift
+//  AudioOutputTests.swift
 //  SpotiflyTests
 //
-//  The stream header the AVPlayer output serves
+//  The stream header the audio output serves
 //
 
 import Foundation

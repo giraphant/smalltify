@@ -12,9 +12,6 @@ struct SpeakersView: View {
     @Environment(AuthViewModel.self) private var authViewModel
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
-    /// This Mac's output device, followed while the page shows.
-    @State private var outputDeviceName: String?
-
     /// Whether AirPlay is available: only while this Mac is the active device.
     private var isAirPlayEnabled: Bool {
         player.isPlayingHere
@@ -85,27 +82,20 @@ struct SpeakersView: View {
                 Text("speakers.spotify_connect_hint")
             }
 
-            // The system's route picker, for this Mac's output, while Spotifly plays here.
-            // `plans/open/spotifly-only-airplay.md` puts Spotifly's audio alone behind it.
+            // The AirPlay picker for Spotifly's own player, while it plays here. No device name
+            // beside it: the Mac's default output is not where Spotifly plays once its player is
+            // routed elsewhere, and nothing reports that player's route.
             Section {
-                LabeledContent {
-                    AirPlayRoutePickerView.spotifly
+                LabeledContent("speakers.output_device") {
+                    AirPlayRoutePickerView()
                         .frame(width: 30, height: 24)
                         .disabled(!isAirPlayEnabled)
                         .opacity(isAirPlayEnabled ? 1 : 0.5)
-                } label: {
-                    Text("speakers.output_device")
-                    // The Mac's default output, which is not where Spotifly plays once its own
-                    // player is routed elsewhere; nothing reports that player's route.
-                    if !SpotifyPlayer.usesAVPlayerOutput, let name = outputDeviceName {
-                        Text(verbatim: name)
-                    }
                 }
             } header: {
                 Text("speakers.audio_output")
             } footer: {
-                Text(!isAirPlayEnabled ? "speakers.airplay_disabled_hint"
-                    : SpotifyPlayer.usesAVPlayerOutput ? "speakers.airplay_hint_app_only" : "speakers.airplay_hint")
+                Text(isAirPlayEnabled ? "speakers.airplay_hint" : "speakers.airplay_disabled_hint")
             }
 
             ConnectionSection {
@@ -115,11 +105,6 @@ struct SpeakersView: View {
             }
         }
         .formStyle(.grouped)
-        .task {
-            for await name in AudioOutputDevice.names() {
-                outputDeviceName = name
-            }
-        }
         .playerBarClearance()
     }
 }

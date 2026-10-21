@@ -1,29 +1,43 @@
 //
-//  StreamingPlayerSink.swift
+//  AudioOutput.swift
 //  Spotifly
 //
-//  The probe's audio output: the pipeline's PCM played by an AVPlayer, as one stream
+//  The audio output: the pipeline's PCM played by an AVPlayer, as one stream
 //
 
 import AVFoundation
 import CoreMedia
 import Synchronization
 
-/// Plays the pipeline's PCM through an `AVPlayer`, so the native AirPlay picker can send it, and
-/// nothing else of the Mac's audio, to a receiver (`plans/open/avplayer-output-probe.md`).
+/// Plays the pipeline's PCM through an `AVPlayer`: the one player macOS lets the AirPlay picker
+/// send to a receiver alone, the rest of the Mac's audio staying where it is
+/// (`plans/done/avplayer-output.md`).
 ///
-/// The player's item is a stream this sink writes as the pipeline pushes: a CAF of 44.1 kHz
-/// stereo Float32 PCM, served through a resource loader under a custom scheme, its data chunk
-/// declared a day long. One item serves the session: an item started while an AirPlay receiver
-/// is chosen never asks its loader for a byte, so a `restart` (a load, a seek) is a seek within it
-/// to where the new audio begins, the end of what is written. Between tracks the stream runs on,
-/// so the next track is the next sample, as with the renderer. Nothing is decoded ahead as a
-/// whole file: `enqueue` returns once what is written ahead of the playhead is under
-/// `aheadTarget`, or at once while the player waits for data.
-actor StreamingPlayerSink: AudioSink {
+/// The pipeline pushes interleaved 44.1 kHz stereo Float32 PCM and paces itself on `enqueue`,
+/// which suspends until the output wants more; a paused output wants nothing, so the decode waits
+/// out a pause inside it. The first buffer after a `restart` plays at playhead zero and each one
+/// after it directly follows, which is all the pipeline's gapless playback is: the next track is
+/// decoded into the same stream behind the current one.
+///
+/// The player's item is that stream: a CAF written as the pipeline pushes, served through a
+/// resource loader under a custom scheme, its data chunk declared a day long. One item serves the
+/// session: an item started while a receiver is chosen never asks its loader for a byte, so a
+/// `restart` (a load, a seek) is a seek within it to where the new audio begins, the end of what
+/// is written. Nothing is decoded ahead as a whole file: `enqueue` returns once what is written
+/// ahead of the playhead is under `aheadTarget`, or at once while the player waits for data.
+actor AudioOutput {
     nonisolated static let sampleRate = 44100
     nonisolated static let channelCount = 2
     nonisolated static let bytesPerFrame = MemoryLayout<Float>.size * channelCount
+
+    /// What became of a buffer handed to `enqueue`.
+    enum Enqueued {
+        case accepted
+        /// Discarded by a restart or a stop, or the caller's task was cancelled.
+        case flushed
+        /// The player's item failed, and plays nothing more until the next restart.
+        case failed
+    }
 
     /// Written ahead of the playhead before `enqueue` waits. The player keeps a buffer of its own
     /// ahead of what is heard; with 3 s it starved after a resume and stood still.
@@ -48,15 +62,15 @@ actor StreamingPlayerSink: AudioSink {
 
     private nonisolated let requestedVolume = Mutex<Float>(1)
 
-    /// The output, the player the AirPlay picker binds. On the main actor, as the player's KVO
-    /// and the picker are.
-    nonisolated var output: StreamingPlayerOutput {
-        StreamingPlayerOutput.shared
+    /// The player itself, on the main actor, as its KVO and the AirPlay picker are.
+    nonisolated var output: AudioOutputPlayer {
+        AudioOutputPlayer.shared
     }
 
     // MARK: - Feeding
 
-    func enqueue(_ samples: Data, frames: Int) async -> AudioSinkEnqueued {
+    /// Queues `frames` interleaved frames, suspending until the player wants more.
+    func enqueue(_ samples: Data, frames: Int) async -> Enqueued {
         guard !Task.isCancelled, let stream else { return .flushed }
         let generation = generation
 
@@ -81,8 +95,8 @@ actor StreamingPlayerSink: AudioSink {
                 return .accepted
             }
             // Asleep until a second under the target, so the decode fills that second in one
-            // go: checked every 50 ms, the wait woke the app 12 times a second against the
-            // renderer's 3. A starving player is noticed within the second.
+            // go: checked every 50 ms, the wait woke the app 12 times a second, against 3 for the
+            // renderer this replaced. A starving player is noticed within the second.
             let untilRoom = min(1, max(0.05, ahead - (Self.aheadTarget - 1)))
             try? await Task.sleep(for: .seconds(untilRoom))
         }
@@ -90,6 +104,7 @@ actor StreamingPlayerSink: AudioSink {
 
     // MARK: - Playback Control
 
+    /// Discards everything queued and starts the playhead again at zero, running or held.
     func restart(paused: Bool) async {
         generation += 1
         // A failed item plays nothing more, so it is replaced, as a full stream is.
@@ -121,13 +136,8 @@ actor StreamingPlayerSink: AudioSink {
         await output.pause()
     }
 
-    /// The player waits for data itself, and follows a change of output on its own.
-    var isStalled: Bool {
-        false
-    }
-
-    /// The item's playhead from the run's origin. Until a seek to the origin has taken, the
-    /// item is behind it, which counts as zero.
+    /// Frames played out since the last `restart`, the audible playhead: the item's, from the
+    /// run's origin. Until a seek to the origin has taken, the item is behind it: zero.
     nonisolated var playedFrames: Int64 {
         let seconds = output.playheadSeconds
         guard seconds.isFinite, seconds > 0 else { return 0 }
@@ -136,19 +146,22 @@ actor StreamingPlayerSink: AudioSink {
 
     // MARK: - Volume
 
+    /// Sets the player's gain (0…1), after the perceptual curve. A receiver's volume is its own,
+    /// set in the AirPlay picker: no public API reaches it, and this gain does not (measured on a
+    /// HomePod, 70 % and 30 % alike).
     nonisolated func setVolume(_ volume: Float) {
         let volume = max(0, min(1, volume))
         requestedVolume.withLock { $0 = volume }
-        Task { @MainActor in StreamingPlayerOutput.shared.setVolume(volume) }
+        Task { @MainActor in AudioOutputPlayer.shared.setVolume(volume) }
     }
 }
 
 // MARK: - Output
 
-/// The `AVPlayer` the sink plays its streams through, and the one the AirPlay picker binds.
+/// The `AVPlayer` the output plays its stream through, and the one the AirPlay picker binds.
 @MainActor
-final class StreamingPlayerOutput {
-    nonisolated static let shared = StreamingPlayerOutput()
+final class AudioOutputPlayer {
+    nonisolated static let shared = AudioOutputPlayer()
 
     let player: AVPlayer
 
@@ -165,8 +178,7 @@ final class StreamingPlayerOutput {
     private var itemObservation: NSKeyValueObservation?
     private var restartedAt: ContinuousClock.Instant?
     private var stream: PCMStream?
-    private var diagnostics: Task<Void, Never>?
-    /// Whether the sink means the player to play. A player that stalls with nothing to wait for
+    /// Whether the output means the player to play. A player that stalls with nothing to wait for
     /// pauses itself, and stays paused: measured on resuming on a HomePod, where it flipped to
     /// paused 70 ms after playing, with data loaded beyond the playhead.
     private var wantsToPlay = false
@@ -187,7 +199,7 @@ final class StreamingPlayerOutput {
         playerObservation = player.observe(\.timeControlStatus, options: [.new]) { @Sendable player, _ in
             let status = player.timeControlStatus
             let reason = player.reasonForWaitingToPlay?.rawValue
-            Task { @MainActor in StreamingPlayerOutput.shared.timeControlStatusChanged(status, reason: reason) }
+            Task { @MainActor in AudioOutputPlayer.shared.timeControlStatusChanged(status, reason: reason) }
         }
     }
 
@@ -222,7 +234,7 @@ final class StreamingPlayerOutput {
             let error = item.error.map { "\($0)" }
             let itemTimebase = item.timebase.map { UncheckedTimebase(timebase: $0) }
             Task { @MainActor in
-                StreamingPlayerOutput.shared.itemStatusChanged(status, timebase: itemTimebase, error: error, stream: stream.generation)
+                AudioOutputPlayer.shared.itemStatusChanged(status, timebase: itemTimebase, error: error, stream: stream.generation)
             }
         }
 
@@ -234,18 +246,7 @@ final class StreamingPlayerOutput {
         } else {
             player.playImmediately(atRate: 1)
         }
-        debugLog("PlayerSink", "Stream \(stream.generation): new item, \(paused ? "held" : "playing")")
-
-        // The probe's measurements: where the playhead is against what the player has loaded.
-        diagnostics?.cancel()
-        diagnostics = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard let self, let item = player.currentItem else { continue }
-                let loaded = item.loadedTimeRanges.last.map { CMTimeRangeGetEnd($0.timeRangeValue).seconds } ?? 0
-                debugLog("PlayerSink", String(format: "Stream %d: playhead %.2f s, loaded to %.2f s, rate %.0f, keeping up %@", stream.generation, playheadSeconds, loaded, player.rate, item.isPlaybackLikelyToKeepUp ? "yes" : "no"))
-            }
-        }
+        debugLog("AudioOutput", "Stream \(stream.generation): new item, \(paused ? "held" : "playing")")
     }
 
     /// Moves the item to `frame`, where the next run's audio will be written, and plays from
@@ -261,15 +262,15 @@ final class StreamingPlayerOutput {
         seekInFlight = true
         wantsToPlay = !paused
         player.pause()
-        seek(to: CMTime(value: frame, timescale: CMTimeScale(StreamingPlayerSink.sampleRate)), number: seeks, attempt: 1)
+        seek(to: CMTime(value: frame, timescale: CMTimeScale(AudioOutput.sampleRate)), number: seeks, attempt: 1)
     }
 
     private func seek(to time: CMTime, number: Int, attempt: Int) {
         let generation = stream?.generation ?? 0
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
             Task { @MainActor in
-                let output = StreamingPlayerOutput.shared
-                debugLog("PlayerSink", "Stream \(generation): seek to \(String(format: "%.2f", time.seconds)) s \(finished ? "done" : "superseded") after \(output.elapsedMs()) ms")
+                let output = AudioOutputPlayer.shared
+                debugLog("AudioOutput", "Stream \(generation): seek to \(String(format: "%.2f", time.seconds)) s \(finished ? "done" : "superseded") after \(output.elapsedMs()) ms")
                 guard number == output.seeks else { return }
                 if !finished, attempt < 3 {
                     output.seek(to: time, number: number, attempt: attempt + 1)
@@ -305,10 +306,10 @@ final class StreamingPlayerOutput {
         switch status {
         case .readyToPlay:
             timebase.withLock { $0 = itemTimebase?.timebase }
-            debugLog("PlayerSink", "Stream \(generation): ready after \(elapsedMs()) ms")
+            debugLog("AudioOutput", "Stream \(generation): ready after \(elapsedMs()) ms")
         case .failed:
             failed.withLock { $0 = true }
-            debugLog("PlayerSink", "Stream \(generation): failed: \(error ?? "?")")
+            debugLog("AudioOutput", "Stream \(generation): failed: \(error ?? "?")")
         default:
             break
         }
@@ -319,19 +320,19 @@ final class StreamingPlayerOutput {
         playing.withLock { $0 = status == .playing }
         switch status {
         case .playing:
-            debugLog("PlayerSink", "Playing, \(elapsedMs()) ms after the restart")
+            debugLog("AudioOutput", "Playing, \(elapsedMs()) ms after the restart")
         case .waitingToPlayAtSpecifiedRate:
-            debugLog("PlayerSink", "Waiting: \(reason ?? "?")")
+            debugLog("AudioOutput", "Waiting: \(reason ?? "?")")
         case .paused where wantsToPlay && !seekInFlight:
             // Stalled: nothing else will start it again.
-            debugLog("PlayerSink", "Paused by itself; playing again")
+            debugLog("AudioOutput", "Paused by itself; playing again")
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(100))
                 guard let self, wantsToPlay, !seekInFlight, player.timeControlStatus == .paused else { return }
                 player.playImmediately(atRate: 1)
             }
         case .paused:
-            debugLog("PlayerSink", "Paused")
+            debugLog("AudioOutput", "Paused")
         @unknown default:
             break
         }
@@ -352,7 +353,7 @@ private struct UncheckedTimebase: @unchecked Sendable {
 
 // MARK: - Stream
 
-/// One item's bytes: a CAF header, then PCM as the sink writes it, served to the player's
+/// One item's bytes: a CAF header, then PCM as the output writes it, served to the player's
 /// resource loader from a window of what has been written.
 ///
 /// Confined to `queue`, the loader's delegate queue: appends hop onto it, and the loader calls
@@ -363,8 +364,8 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
     let queue: DispatchQueue
 
     /// The data chunk's declared length: a day of audio, far longer than a session plays.
-    static let declaredFrames = Int64(StreamingPlayerSink.sampleRate * 86400)
-    private static let declaredDataBytes = declaredFrames * Int64(StreamingPlayerSink.bytesPerFrame)
+    static let declaredFrames = Int64(AudioOutput.sampleRate * 86400)
+    private static let declaredDataBytes = declaredFrames * Int64(AudioOutput.bytesPerFrame)
 
     private let header: Data
     private var storage = Data()
@@ -423,7 +424,7 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
             info.isByteRangeAccessSupported = true
         }
         if let data = request.dataRequest {
-            debugLog("PlayerSink", "Stream \(generation): request at \(data.requestedOffset), \(data.requestsAllDataToEndOfResource ? "to the end" : "\(data.requestedLength) bytes"), \(written) written")
+            debugLog("AudioOutput", "Stream \(generation): request at \(data.requestedOffset), \(data.requestsAllDataToEndOfResource ? "to the end" : "\(data.requestedLength) bytes"), \(written) written")
             // Before it plays, the player reads two places far ahead, and waits for both: the
             // declared end, to look for chunks after the data, and 1,667,301,376 (0x63610000) of a
             // day-long stream. The end is a day of audio in, which no one reaches: silence
@@ -458,7 +459,7 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
             guard !request.isFinished, !request.isCancelled, let data = request.dataRequest else { return true }
             let offset = data.currentOffset
             guard offset >= storageStart else {
-                debugLog("PlayerSink", "Stream \(generation): asked for \(offset), before the kept \(storageStart)")
+                debugLog("AudioOutput", "Stream \(generation): asked for \(offset), before the kept \(storageStart)")
                 request.finishLoading(with: URLError(.dataNotAllowed))
                 return true
             }
@@ -508,12 +509,12 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
 
         append("desc")
         append(Int64(32))
-        append(Float64(StreamingPlayerSink.sampleRate).bitPattern)
+        append(Float64(AudioOutput.sampleRate).bitPattern)
         append("lpcm")
         append(UInt32(1 | 2)) // float, little-endian
-        append(UInt32(StreamingPlayerSink.bytesPerFrame)) // bytes per packet
+        append(UInt32(AudioOutput.bytesPerFrame)) // bytes per packet
         append(UInt32(1)) // frames per packet
-        append(UInt32(StreamingPlayerSink.channelCount))
+        append(UInt32(AudioOutput.channelCount))
         append(UInt32(32)) // bits per channel
 
         append("data")
