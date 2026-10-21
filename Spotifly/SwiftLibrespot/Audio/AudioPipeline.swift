@@ -599,6 +599,7 @@ actor AudioPipeline {
     /// The decode before it has been retired, or has finished: one decode at a
     /// time feeds the sink, and counts into `decoded`.
     private func startDecodeTask(_ decoder: VorbisDecoder) {
+        assert(decodeTask == nil || decoded.finished, "a decode is still feeding the sink")
         decoded = (0, false)
         decodeTask = Task { await self.decode(decoder) }
     }

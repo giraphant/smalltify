@@ -129,6 +129,8 @@ actor AudioOutput {
     }
 
     func resume() async {
+        // Stood still while paused: from now on, not standing still is starving.
+        lastPlayhead = (playedFrames, .now)
         await output.resume()
     }
 
@@ -422,7 +424,8 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
             // would have played as 12 s of silence 79 minutes in, and the player's one range
             // request stopped there; finished empty, the request runs to the declared end.
             if data.requestedOffset >= declaredLength - Self.tailLength {
-                data.respond(with: Data(count: Int(declaredLength - data.requestedOffset)))
+                let length = declaredLength - data.requestedOffset
+                data.respond(with: Data(count: Int(data.requestsAllDataToEndOfResource ? length : min(length, Int64(data.requestedLength)))))
                 request.finishLoading()
                 return true
             }
