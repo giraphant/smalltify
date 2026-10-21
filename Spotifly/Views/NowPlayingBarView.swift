@@ -295,10 +295,11 @@ struct NowPlayingBarView: View {
             Image(systemName: mode == .track ? "repeat.1" : "repeat")
                 .foregroundStyle(mode == .off ? Color.primary : Color.accentColor)
         }
-        .disabled(!hasPlayback || !playbackViewModel.canRepeat)
+        // Greyed out only where it would switch repeat on and cannot: a radio. Once on, as
+        // repeat-one carried into a radio, its next step leads back to off, which is allowed.
+        .disabled(!hasPlayback || (mode == .off && !playbackViewModel.canRepeat))
         .accessibilityLabel(repeatName(mode))
-        // Greyed out, it says why, as shuffle does; a radio cannot be repeated.
-        .help(playbackViewModel.canRepeat ? repeatName(mode) : "repeat.unavailable")
+        .help(mode == .off && !playbackViewModel.canRepeat ? "repeat.unavailable" : repeatName(mode))
     }
 
     private func repeatName(_ mode: PlaybackQueue.RepeatMode) -> LocalizedStringKey {

@@ -60,7 +60,7 @@ nonisolated struct PlaybackState: Equatable {
     var canSkipNext = true
     /// Whether shuffle may be switched on: not on a station, whose context does not allow it.
     var canShuffle = true
-    /// Whether repeat may be switched on, which a station does not allow either.
+    /// Whether repeat may be switched on from off, which a station does not allow either.
     var canRepeat = true
 }
 
