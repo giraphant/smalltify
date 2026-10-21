@@ -35,6 +35,29 @@ struct LoggedInContentToolbar: ToolbarContent {
                 }
             }
         }
+        // The album list's sort, at the leading edge where the handoff has it.
+        ToolbarItem(placement: .navigation) {
+            if navigationCoordinator.selectedNavigationItem == .albums {
+                AlbumSortPicker()
+            }
+        }
+    }
+}
+
+private struct AlbumSortPicker: View {
+    @Environment(AlbumService.self) private var albumService
+
+    var body: some View {
+        Picker("library.sort", selection: Binding(get: { albumService.sort }, set: { sort in
+            Task { try? await albumService.setSort(sort) }
+        })) {
+            ForEach(AlbumSort.allCases, id: \.self) { sort in
+                Text(sort.title).tag(sort)
+            }
+        }
+        .pickerStyle(.menu)
+        .fixedSize()
+        .help("library.sort")
     }
 }
 
@@ -75,7 +98,6 @@ private struct NavigationHistoryToolbarControl: View {
 private struct LoggedInContextToolbarActions: View {
     @Environment(AppStore.self) private var store
     @Environment(PlaylistService.self) private var playlistService
-    @Environment(AlbumService.self) private var albumService
     @Environment(ArtistService.self) private var artistService
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
@@ -86,14 +108,10 @@ private struct LoggedInContextToolbarActions: View {
     var body: some View {
         switch navigationCoordinator.selectedNavigationItem {
         case .albums:
-            HStack(spacing: 8) {
-                albumSortPicker
-
-                if let albumId = navigationCoordinator.selectedAlbumId,
-                   let album = store.albums[albumId]
-                {
-                    albumToolbarActions(album: album)
-                }
+            if let albumId = navigationCoordinator.selectedAlbumId,
+               let album = store.albums[albumId]
+            {
+                albumToolbarActions(album: album)
             }
         case .artists:
             if let artistId = navigationCoordinator.selectedArtistId,
@@ -153,20 +171,6 @@ private struct LoggedInContextToolbarActions: View {
                 playbackViewModel.errorMessage = String(localized: "error.add_to_playlist \(error.localizedDescription)")
             }
         }
-    }
-
-    /// The sort of the album list, at the toolbar's leading edge.
-    private var albumSortPicker: some View {
-        Picker("library.sort", selection: Binding(get: { albumService.sort }, set: { sort in
-            Task { try? await albumService.setSort(sort) }
-        })) {
-            ForEach(AlbumSort.allCases, id: \.self) { sort in
-                Text(sort.title).tag(sort)
-            }
-        }
-        .pickerStyle(.menu)
-        .fixedSize()
-        .help("library.sort")
     }
 
     private func artistToolbarActions(artist: Artist) -> some View {
