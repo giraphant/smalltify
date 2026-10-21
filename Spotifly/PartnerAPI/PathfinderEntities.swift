@@ -37,9 +37,10 @@ extension Playability {
 }
 
 extension Track {
-    /// Nil when the result carries no id or uri — an entity `AppStore` could not key.
+    /// Nil when the result carries no uri — an entity `AppStore` could not key. The id is the
+    /// one the uri names where the result sends none, as `userTopContent` does.
     init?(pathfinder track: PathfinderTrack) {
-        guard let id = track.id, let uri = track.uri else { return nil }
+        guard let uri = track.uri, let id = track.id ?? SpotifyURI.id(from: uri) else { return nil }
 
         self.init(
             id: id,
@@ -373,7 +374,7 @@ struct HomePage {
 
             guard !items.isEmpty else { continue }
 
-            sections.append(HomeSection(id: uri, title: section.title, items: items))
+            sections.append(HomeSection(id: uri, title: section.title, items: items, isRecentlyPlayed: section.isRecentlyPlayed))
         }
     }
 
