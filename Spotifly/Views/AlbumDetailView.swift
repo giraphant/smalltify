@@ -13,7 +13,6 @@ struct AlbumDetailView: View {
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(AppStore.self) private var store
     @Environment(AlbumService.self) private var albumService
-    @Environment(TrackService.self) private var trackService
     @Environment(NavigationCoordinator.self) private var navigationCoordinator
 
     @State private var isLoading = false
@@ -56,9 +55,6 @@ struct AlbumDetailView: View {
         } message: {
             Text("album.remove.message \(album?.name ?? "")")
         }
-        .onToolbarAction(.showAlbumRemoveConfirmation, addressedTo: albumId) {
-            showRemoveConfirmation = true
-        }
     }
 
     private func albumContent(_ album: Album) -> some View {
@@ -95,17 +91,15 @@ struct AlbumDetailView: View {
         }
     }
 
-    private var isSaved: Bool {
-        store.userAlbumIds.contains(albumId)
-    }
-
     private func header(_ album: Album, tracks: [Track]) -> some View {
-        DetailHeader(
+        let isSaved = store.userAlbumIds.contains(albumId)
+
+        return DetailHeader(
             kind: album.releaseDate.map { String(localized: "detail.kind.album \(String($0.prefix(4)))") }
                 ?? String(localized: "detail.kind.album"),
             title: album.name,
         ) {
-            Artwork(images: album.images, size: 132, shape: AnyShape(.rect(cornerRadius: 10)), symbol: "music.note", symbolFont: .system(size: 48))
+            Artwork.detailHeader(album.images, symbol: "music.note")
         } metadata: {
             HStack(spacing: 4) {
                 // Only an album that names its artist can offer the way to them.
@@ -118,10 +112,11 @@ struct AlbumDetailView: View {
                 } else {
                     Text(album.artistName)
                 }
-                ForEach([localizedNumberString("metadata.tracks", album.trackCount), tracks.isEmpty ? nil : totalDuration(of: tracks)].compactMap(\.self), id: \.self) {
-                    Text("metadata.separator")
-                    Text(verbatim: $0)
-                }
+                // After the artist: the count, and the length once the tracks are in.
+                Text(verbatim: [
+                    localizedNumberString("metadata.tracks", album.trackCount),
+                    tracks.isEmpty ? nil : totalDuration(of: tracks),
+                ].compactMap(\.self).map { "\(String(localized: "metadata.separator")) \($0)" }.joined(separator: " "))
             }
         } actions: {
             PlayAndShuffleButtons {

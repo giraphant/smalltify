@@ -123,48 +123,29 @@ private struct LoggedInContextToolbarActions: View {
         }
     }
 
-    /// Share, and a menu with the rest, as the handoff's album toolbar has it.
+    /// The handoff's album toolbar.
     private func albumToolbarActions(album: Album) -> some View {
-        HStack(spacing: 8) {
-            shareLink(for: album.uri)
-
+        shareAndMoreMenu(uri: album.uri) {
             Menu {
-                Button("action.play", systemImage: "play.fill") {
-                    Task { await playbackViewModel.play(uriOrUrl: album.uri) }
-                }
-                Button("track.menu.play_next", systemImage: "text.line.first.and.arrowtriangle.forward") {
-                    Task { await playbackViewModel.addToQueue(uri: album.uri) }
-                }
-                Menu {
-                    PlaylistSubmenuContent(store: store, playlistService: playlistService) { playlistId in
-                        addTracks(of: album, toPlaylist: playlistId)
-                    }
-                } label: {
-                    Label("track.menu.add_to_playlist", systemImage: "music.note.list")
-                }
-                .disabled(album.trackIds.isEmpty)
-
-                Divider()
-
-                if let artistId = album.artistId {
-                    Button("track.menu.go_to_artist", systemImage: "person") {
-                        navigationCoordinator.navigateToArtistSection(artistId: artistId)
-                    }
-                }
-                Button("action.copy_link", systemImage: "link") {
-                    copyLink(of: album.uri)
+                PlaylistSubmenuContent(store: store, playlistService: playlistService) { playlistId in
+                    addTracks(album.trackIds, toPlaylist: playlistId)
                 }
             } label: {
-                Label("action.more", systemImage: "ellipsis")
+                Label("track.menu.add_to_playlist", systemImage: "music.note.list")
             }
-            .labelStyle(.iconOnly)
-            .help("action.more")
+            .disabled(album.trackIds.isEmpty)
+
+            Divider()
+
+            if let artistId = album.artistId {
+                Button("track.menu.go_to_artist", systemImage: "person") {
+                    navigationCoordinator.navigateToArtistSection(artistId: artistId)
+                }
+            }
         }
     }
 
-    /// The album's playable tracks, added to a playlist in its order.
-    private func addTracks(of album: Album, toPlaylist playlistId: String) {
-        let trackIds = album.trackIds.filter { store.tracks[$0]?.isPlayable != false }
+    private func addTracks(_ trackIds: [String], toPlaylist playlistId: String) {
         Task {
             do {
                 try await playlistService.addTracksToPlaylist(playlistId: playlistId, trackIds: trackIds)
@@ -179,9 +160,9 @@ private struct LoggedInContextToolbarActions: View {
         Picker("library.sort", selection: Binding(get: { albumService.sort }, set: { sort in
             Task { try? await albumService.setSort(sort) }
         })) {
-            Text("library.sort.recently_added").tag(AlbumSort.recentlyAdded)
-            Text("library.sort.title").tag(AlbumSort.title)
-            Text("library.sort.artist").tag(AlbumSort.artist)
+            ForEach(AlbumSort.allCases, id: \.self) { sort in
+                Text(sort.title).tag(sort)
+            }
         }
         .pickerStyle(.menu)
         .fixedSize()
@@ -210,48 +191,55 @@ private struct LoggedInContextToolbarActions: View {
         }
     }
 
-    /// Share, and a menu with the rest, as the handoff's playlist toolbar has it.
+    /// The handoff's playlist toolbar.
     private func playlistToolbarActions(playlist: Playlist) -> some View {
+        shareAndMoreMenu(uri: playlist.uri) {
+            Divider()
+
+            if playlist.ownerId == store.userId {
+                Button("playlist.menu.edit_details", systemImage: "pencil") {
+                    NotificationCenter.default.post(name: .showPlaylistEditDetails, object: playlist.id)
+                }
+                Button("playlist.menu.choose_cover", systemImage: "photo") {
+                    NotificationCenter.default.post(name: .showPlaylistCoverPicker, object: playlist.id)
+                }
+                Button("playlist.menu.remove_cover") {
+                    NotificationCenter.default.post(name: .showPlaylistRemoveCoverConfirmation, object: playlist.id)
+                }
+                Button("playlist.menu.delete", systemImage: "trash", role: .destructive) {
+                    NotificationCenter.default.post(name: .showPlaylistDeleteConfirmation, object: playlist.id)
+                }
+            } else if store.userPlaylistIds.contains(playlist.id) {
+                Button("playlist.menu.unfollow", systemImage: "minus.circle") {
+                    NotificationCenter.default.post(name: .showPlaylistUnfollowConfirmation, object: playlist.id)
+                }
+            } else {
+                Button("playlist.menu.follow", systemImage: "plus.circle") {
+                    Task { try? await playlistService.followPlaylist(playlistId: playlist.id) }
+                }
+            }
+        }
+    }
+
+    /// Share, and a menu of Play, Play Next, what the page adds, and Copy Link.
+    private func shareAndMoreMenu(uri: String, @ViewBuilder pageItems: () -> some View) -> some View {
         HStack(spacing: 8) {
-            shareLink(for: playlist.uri)
+            shareLink(for: uri)
 
             Menu {
                 Button("action.play", systemImage: "play.fill") {
-                    Task { await playbackViewModel.play(uriOrUrl: playlist.uri) }
+                    Task { await playbackViewModel.play(uriOrUrl: uri) }
                 }
                 Button("track.menu.play_next", systemImage: "text.line.first.and.arrowtriangle.forward") {
-                    Task { await playbackViewModel.addToQueue(uri: playlist.uri) }
+                    Task { await playbackViewModel.addToQueue(uri: uri) }
                 }
 
-                Divider()
-
-                if playlist.ownerId == store.userId {
-                    Button("playlist.menu.edit_details", systemImage: "pencil") {
-                        NotificationCenter.default.post(name: .showPlaylistEditDetails, object: playlist.id)
-                    }
-                    Button("playlist.menu.choose_cover", systemImage: "photo") {
-                        NotificationCenter.default.post(name: .showPlaylistCoverPicker, object: playlist.id)
-                    }
-                    Button("playlist.menu.remove_cover") {
-                        NotificationCenter.default.post(name: .showPlaylistRemoveCoverConfirmation, object: playlist.id)
-                    }
-                    Button("playlist.menu.delete", systemImage: "trash", role: .destructive) {
-                        NotificationCenter.default.post(name: .showPlaylistDeleteConfirmation, object: playlist.id)
-                    }
-                } else if store.userPlaylistIds.contains(playlist.id) {
-                    Button("playlist.menu.unfollow", systemImage: "minus.circle") {
-                        NotificationCenter.default.post(name: .showPlaylistUnfollowConfirmation, object: playlist.id)
-                    }
-                } else {
-                    Button("playlist.menu.follow", systemImage: "plus.circle") {
-                        Task { try? await playlistService.followPlaylist(playlistId: playlist.id) }
-                    }
-                }
+                pageItems()
 
                 Divider()
 
                 Button("action.copy_link", systemImage: "link") {
-                    copyLink(of: playlist.uri)
+                    copyLink(of: uri)
                 }
             } label: {
                 Label("action.more", systemImage: "ellipsis")

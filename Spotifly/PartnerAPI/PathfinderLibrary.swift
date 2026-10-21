@@ -204,6 +204,15 @@ nonisolated enum AlbumSort: String, CaseIterable, Sendable {
         case .artist: "Creator"
         }
     }
+
+    /// What the sort menu calls it.
+    var title: LocalizedStringResource {
+        switch self {
+        case .recentlyAdded: "library.sort.recently_added"
+        case .title: "library.sort.title"
+        case .artist: "library.sort.artist"
+        }
+    }
 }
 
 /// The library kinds this app asks for.
