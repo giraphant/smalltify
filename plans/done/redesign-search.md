@@ -1,6 +1,6 @@
 # Redesign: Suchen
 
-Status: **Open**, planned 2026-10-21. Sixth of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #210. Sixth of the stacked redesign PRs
 Components: `Spotifly/Views/SearchResultsView.swift`, `Spotifly/Views/SearchAllTracksView.swift` (goes),
 `Spotifly/Views/SearchHomeView.swift` (new), `Spotifly/Views/LoggedInContentRouterView.swift`,
 `Spotifly/Views/LoggedInView.swift`, `Spotifly/Views/SidebarView.swift`, `Spotifly/Models/Route.swift`,
@@ -34,8 +34,8 @@ prototype shows none for it either.
 
 - `NavigationItem.searchResults` is always in the sidebar, titled "Suchen". Selecting it reopens
   the last search, as today, or the search page with no query.
-- `Route.showsAllTracks` becomes `Route.searchScope` (`all`, `tracks`, `artists`, `albums`,
-  `playlists`): a scope is a step in the history, as the old all-tracks page was and as the web
+- `Route.showsAllTracks` becomes `Route.searchScope`, a `SearchKind` (`tracks`, `artists`,
+  `albums`, `playlists`) or nil for all: a scope is a step in the history, as the old all-tracks page was and as the web
   player's search tabs are. `showAllSearchTracks()` becomes `showSearchScope(_:)`.
 - Emptying the field goes to the search page instead of the start page.
 
@@ -59,3 +59,15 @@ prototype shows none for it either.
 - Build, unit tests.
 - Run the Debug build: open Suchen (field focused, recent searches), search, switch scopes, load
   more albums, go back through the scopes, clear the history.
+
+### Result
+
+- Live: Suchen opens with the field focused and "Fallon" under Letzte Suchen once searched; a
+  click on it searches again and fills the field; the scopes switch and go back through the
+  history; "Mehr laden" under Alben added 20 more; emptying the field returns to the page.
+- Paging counts every row Spotify sent (`PathfinderItems.sent`), as `PaginationState` does, and a
+  short page ends the kind. A page loaded for an earlier run of the same query is dropped
+  (`SearchResults.id`). The field follows the search shown, and is empty on the page before one.
+- Reviews: `/simplify` brought `SearchKind`, one fetch for both the search and Load More, the
+  shared `SectionHeader`/`CardRow`, and the field sync in place of an environment action, and
+  deleted the unused `TrackCard`. Codex found the three paging and field bugs above, all fixed.
