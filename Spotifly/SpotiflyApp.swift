@@ -103,6 +103,8 @@ struct SpotiflyApp: App {
         }
         .windowResizability(windowState.isMiniPlayerMode ? .contentSize : .automatic)
         .commands {
+            // "Show/Hide Sidebar", ⌃⌘S, in the View menu.
+            SidebarCommands()
             SpotiflyCommands(sessions: auth?.sessions, windowState: windowState)
         }
 
@@ -187,6 +189,20 @@ struct SpotiflyCommands: Commands {
                 playbackViewModel.previous()
             }
             .keyboardShortcut(.leftArrow, modifiers: .command)
+
+            Divider()
+
+            Button("menu.volume_up") {
+                playbackViewModel.stepVolume(by: PlaybackViewModel.volumeStep)
+            }
+            .keyboardShortcut(.upArrow, modifiers: .command)
+            .disabled(playbackViewModel.sliderRefused)
+
+            Button("menu.volume_down") {
+                playbackViewModel.stepVolume(by: -PlaybackViewModel.volumeStep)
+            }
+            .keyboardShortcut(.downArrow, modifiers: .command)
+            .disabled(playbackViewModel.sliderRefused)
 
             Divider()
 

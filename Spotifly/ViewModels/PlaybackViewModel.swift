@@ -181,6 +181,21 @@ final class PlaybackViewModel {
         remoteVolumeSubject.send(newVolume)
     }
 
+    /// How far ⌘↑ and ⌘↓ move the volume.
+    nonisolated static let volumeStep = 0.1
+
+    /// Moves what the slider shows by `delta`: the keyboard's way to the slider. Nothing while
+    /// the device playing controls its own volume, as the slider is greyed then.
+    func stepVolume(by delta: Double) {
+        guard !sliderRefused else { return }
+        setVolumeFromSlider(Self.steppedVolume(sliderVolume, by: delta))
+    }
+
+    /// The volume a step leaves, held to 0–1.
+    nonisolated static func steppedVolume(_ volume: Double, by delta: Double) -> Double {
+        min(1, max(0, volume + delta))
+    }
+
     /// A drag of another device's volume, which the slider shows ahead of the device's report.
     private struct DraggedVolume {
         let deviceId: String
