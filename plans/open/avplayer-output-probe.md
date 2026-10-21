@@ -1,7 +1,9 @@
 # Probe: AVPlayer as the only audio output, streamed, with AirPlay from the shell
 
 Status: **Open**, probed 2026-10-21 (PR #219): it works, locally and on the Küche HomePod, behind a
-Debug switch; the renderer stays the default. Not yet heard by the user, nor its volume on a HomePod
+Debug switch; the renderer stays the default. Checked by ear through the Mac's microphone, not by
+the user; the bar's volume does not reach a HomePod, and a paused Spotifly loses its receiver when
+another app plays
 Components: `Spotifly/AudioRenderer.swift`, `Spotifly/StreamingPlayerSink.swift` (new),
 `Spotifly/SwiftLibrespot/Audio/AudioPipeline.swift`, `Spotifly/SpotifyPlayer.swift`,
 `Spotifly/Views/AirPlayRoutePickerView.swift`, `Spotifly/Views/NowPlayingBarView.swift`,
@@ -126,15 +128,46 @@ What held:
   without a stop. The picker keeps the HomePod across seeks, as the route belongs to the player.
 - The renderer path, switch off, plays as before, and the bar shows its Wiedergabe-auf button.
 
-Not yet known:
+### Second round: by ear, CPU, handover
 
-- Whether it sounds right: the user has not listened. Audible position on the HomePod against
-  what Connect reports, and what a switch sounds like.
-- The bar's volume on a HomePod (`AVPlayer.volume`); #202 found none reaching it.
-- The one range request covers 1.67 GB, about 79 minutes of stream; what the player asks after
-  it is untested, as is a session past a day's declared length (a restart then begins a new
-  stream, which on a receiver would not load).
-- CPU against the renderer, a Connect handover in and out, sleep and wake, receiver loss.
+Listened with the MacBook's microphone (`ffmpeg -f avfoundation`), the HomePod beside it, the
+level per 50–250 ms window in dBFS; the room is about −76 dB, music −35 to −40.
+
+- **The HomePod plays it**: −39 dB with the Mac's output muted, −76 paused.
+- **Gapless, heard**: across a track change on a live album (*Bullet in a Bible*, Longview into
+  the next, the crowd never silent) the quietest 50 ms of 25 s was −39.8 dB against a median of
+  −35.3; a gap would be the room's −76.
+- **Pause and resume** on the HomePod: silent within about 0.5 s, sound back within 0.5 s, three
+  times each.
+- **The bar's volume does not reach the HomePod**: −34.8 dB at 70 %, −34.9 at 30 %, where the
+  curve would take 24 dB off. #202 found the same. macOS 27 has no public API for an
+  `AVPlayer`'s route or its receiver's volume (`AVRoutingPlaybackArbiter`, `outputContext` are
+  iOS and tvOS only); the picker's own slider sets the receiver's volume.
+- **CPU**, A-B-A on the LG display, same Debug build: renderer 3.27 % / 3.17 %, AVPlayer 3.17 %
+  of a core; `coreaudiod` 1.47 % either way; idle wakeups 2.6–2.9 / 3.9 a second (11.7 before the
+  wait slept to a second under the target); energy 3.2–3.7 / 3.1; memory 183 MB / 258 MB.
+- **Connect handover** to the web player and back: Spotifly stopped and took over again, playing
+  in 12 ms, but on the Mac: the HomePod route had gone.
+- **A paused Spotifly loses its receiver when another app plays**: reproduced with `afplay`
+  playing a tone for 10 s while paused; the picker showed the Mac again. A 20 s pause with nothing
+  else playing kept the HomePod, and another app playing while Spotifly plays does not take it.
+  The app cannot set the route back.
+
+Found and fixed meanwhile:
+
+- **A seek could be dropped**: playing right after `seek` cancelled it now and then, and the
+  player played on through 2.4 s of the old position. The output now holds, seeks, and plays when
+  the seek is done; four quick seeks after it took 28–37 ms each, the playhead never behind the
+  target.
+- **The far look-ahead**: finished empty, not with 4 MB of silence, which would have played 79
+  minutes in; the player's one range request then runs to the declared end, a day.
+
+Not known:
+
+- Whether another app's audio stays off the HomePod, by ear: the microphone could not tell a
+  3150 Hz tone from the music. The Mac's default output never changes, which is the evidence.
+- A session past a day of stream (a restart then begins a new stream, which on a receiver would
+  not load), sleep and wake, a receiver lost mid-song.
 
 Codex found two, fixed: a failed item was only logged, so the decode waited on it forever and a
 restart sought within it (now reported to the pipeline as `.failed`, and replaced on the next
