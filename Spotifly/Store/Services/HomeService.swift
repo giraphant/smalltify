@@ -40,6 +40,10 @@ final class HomeService {
     /// One load per top-content range, keyed by its raw value.
     private let topContentRequests = InFlightRequests<Void>()
 
+    /// The ranges the page has asked for, loaded or not, which a refresh loads again: one that
+    /// failed is absent from the store, and would otherwise never be retried.
+    private var requestedTopContentRanges: Set<TopContentRange> = []
+
     /// How many top tracks and artists a range lists.
     private static let topContentLimit = 10
 
@@ -88,7 +92,7 @@ final class HomeService {
     func refresh() async {
         await withTaskGroup { group in
             group.addTask { await self.loadHome(forceRefresh: true) }
-            for range in store.topContent.keys {
+            for range in requestedTopContentRanges {
                 group.addTask { await self.loadTopContent(range: range, forceRefresh: true) }
             }
         }
@@ -98,6 +102,7 @@ final class HomeService {
     /// nothing once loaded unless `forceRefresh` is set. A failure leaves the range as it was:
     /// the section shows what it had, or nothing, as the start page has no error per section.
     func loadTopContent(range: TopContentRange, forceRefresh: Bool = false) async {
+        requestedTopContentRanges.insert(range)
         if !forceRefresh, store.topContent[range] != nil {
             return
         }
