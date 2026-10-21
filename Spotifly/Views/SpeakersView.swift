@@ -12,7 +12,7 @@ struct SpeakersView: View {
     @Environment(AuthViewModel.self) private var authViewModel
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
-    /// This Mac's output device, read when the page appears.
+    /// This Mac's output device, followed while the page shows.
     @State private var outputDeviceName: String?
 
     /// Whether AirPlay is available: only while this Mac is the active device.
@@ -113,7 +113,9 @@ struct SpeakersView: View {
         }
         .formStyle(.grouped)
         .task {
-            outputDeviceName = AudioOutputDevice.defaultName()
+            for await name in AudioOutputDevice.names() {
+                outputDeviceName = name
+            }
         }
         // A form takes no content margins on macOS, so it leaves the bar's room itself.
         .safeAreaInset(edge: .bottom) {
