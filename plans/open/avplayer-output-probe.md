@@ -135,3 +135,8 @@ Not yet known:
   it is untested, as is a session past a day's declared length (a restart then begins a new
   stream, which on a receiver would not load).
 - CPU against the renderer, a Connect handover in and out, sleep and wake, receiver loss.
+
+Codex found two, fixed: a failed item was only logged, so the decode waited on it forever and a
+restart sought within it (now reported to the pipeline as `.failed`, and replaced on the next
+restart); and Wiedergabe auf named the Mac's default output while Spotifly played on the HomePod
+(left out in this mode).
