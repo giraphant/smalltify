@@ -12,6 +12,8 @@ import SwiftUI
 @Observable
 final class WindowState {
     var isMiniPlayerMode = false
+    /// Whether the Now Playing inspector shows beside the content.
+    var isInspectorPresented = false
 
     /// Store the previous window frame to restore when exiting mini player
     private var savedWindowFrame: NSRect?
@@ -62,8 +64,7 @@ final class WindowState {
     }
 
     func exitMiniPlayerMode(window preferredWindow: NSWindow? = nil) {
-        guard isMiniPlayerMode else { return }
-        guard let window = resolvedWindow(preferred: preferredWindow) else { return }
+        guard isMiniPlayerMode, let window = resolvedWindow(preferred: preferredWindow) else { return }
 
         // Restore resizable style
         window.styleMask.insert(.resizable)

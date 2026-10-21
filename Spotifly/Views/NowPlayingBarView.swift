@@ -114,6 +114,14 @@ struct NowPlayingBarView: View {
                 VolumeControl()
             }
 
+            if !isMini {
+                Toggle(isOn: Bindable(windowState).isInspectorPresented) {
+                    Image(systemName: "sidebar.right")
+                }
+                .toggleStyle(.button)
+                .named("inspector.title")
+            }
+
             // Its only way back to the full window that is not in a menu.
             if isMini {
                 Button {
