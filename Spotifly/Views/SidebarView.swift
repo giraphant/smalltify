@@ -80,8 +80,6 @@ enum NavigationItem: Hashable, Identifiable {
 }
 
 struct SidebarView: View {
-    @Environment(PlayerModel.self) private var player
-
     @Binding var selection: NavigationItem?
     var hasSearchResults: Bool = false
     var userProfile: UserProfile?
@@ -114,10 +112,11 @@ struct SidebarView: View {
 
     private func navigationLink(for item: NavigationItem) -> some View {
         NavigationLink(value: item) {
-            Label(item.title, systemImage: item.icon)
-                // The tracks still to come; a count of 0 shows none. On the label, not the link:
-                // a badge on the link took every row's selection highlight away.
-                .badge(item == .queue ? player.queueEntries.nextTracks.count : 0)
+            if item == .queue {
+                QueueRowLabel()
+            } else {
+                Label(item.title, systemImage: item.icon)
+            }
         }
     }
 
@@ -134,10 +133,7 @@ struct SidebarView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
                 .padding(.horizontal, 8)
-                .background(
-                    selection == .profile ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear),
-                    in: .rect(cornerRadius: 7),
-                )
+                .background(.quaternary.opacity(selection == .profile ? 1 : 0), in: .rect(cornerRadius: 7))
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
@@ -147,10 +143,22 @@ struct SidebarView: View {
                     .labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
-            .help("nav.settings_shortcut")
+            .named("nav.settings")
         }
         .padding(.horizontal, 10)
         .padding(.bottom, 8)
+    }
+}
+
+/// The queue's row, with a badge for the tracks still to come; a count of 0 shows none. A view
+/// of its own, so the player's queue redraws this row alone. The badge is on the label, not the
+/// link: on the link it took every row's selection highlight away.
+private struct QueueRowLabel: View {
+    @Environment(PlayerModel.self) private var player
+
+    var body: some View {
+        Label(NavigationItem.queue.title, systemImage: NavigationItem.queue.icon)
+            .badge(player.queueEntries.nextTracks.count)
     }
 }
 

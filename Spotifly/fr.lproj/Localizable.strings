@@ -19,7 +19,6 @@
 "nav.library" = "Bibliothèque";
 "nav.profile" = "Profil";
 "nav.settings" = "Réglages";
-"nav.settings_shortcut" = "Réglages… (⌘,)";
 "nav.back_to %@" = "Retour à %@";
 "nav.back" = "Retour";
 "nav.forward_to %@" = "Suivant : %@";
