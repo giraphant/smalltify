@@ -1,6 +1,6 @@
 # Redesign: Warteschlange
 
-Status: **Open**, planned 2026-10-21. Eleventh of the stacked redesign PRs
+Status: **Done**, 2026-10-21, PR #215. Eleventh of the stacked redesign PRs
 Components: `Spotifly/Views/QueueListView.swift`, `Spotifly/Views/Components/TrackTable.swift`,
 `Spotifly/*.lproj/Localizable.strings`, `Spotifly/*.lproj/Localizable.stringsdict`
 Found: 2026-10-21, `design_handoff_spotifly_macos/README.md` ("Warteschlange"),
@@ -38,7 +38,10 @@ The queue stays read-only plus append, as the handoff says.
   already played are dimmed, as `TrackRow` dimmed them, and each row carries its provider tag.
 - The toolbar keeps Refresh and "Zum aktuellen Titel scrollen"; the table scrolls to the
   current row (`ScrollViewReader` on the table's row ids).
-- `TrackTableRow` gains `isPast` and `tag`, which only the queue sets.
+- `TrackTableRow` gains `isDimmed` (played, or a row the player could not name) and `tag`, which
+  only the queue sets, and `isPlaying(currentRowId:playingUri:)`: the queue names its current row,
+  so a track queued twice lights one row, the rule `TrackRow.isCurrent` held. Rows are named by
+  uid, so a skip shifts no ids.
 
 ## Verification
 
@@ -46,3 +49,17 @@ The queue stays read-only plus append, as the handoff says.
 - Run the Debug build with something queued: the counts, the tags, the dimmed rows, the
   current row in the accent colour, a double-click on a next row (then pause), scroll to
   current.
+
+### Result
+
+- Live: "Warteschlange", "34 Tracks · 33 ausstehend", every row tagged C (a Green Day artist
+  context); scrolling down and "Zum aktuellen Titel scrollen" brought the playing row back; a
+  double-click on "Basket Case" played it, the row before dimmed, paused at once.
+- `/simplify` caught a regression the move to the table made: the table matched the playing
+  track by uri, so a track queued twice lit both rows. The position rule moved to
+  `TrackTableRow.isPlaying`, and with it scroll-to-current into the table. Also: ids by uid,
+  the header as a view of its own (a device's volume no longer redraws the table), the hearts
+  checked when the rows change rather than their count, `TrackRow` down to what search uses,
+  and one `metadataLine` for the four pages that joined it by hand.
+- `/code-review`: a context repeating wraps into the next tracks with uids already listed;
+  such a row gets an id of its own. Codex found nothing further.
