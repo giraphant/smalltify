@@ -130,7 +130,7 @@ struct TrackTable: View {
                     .draggable(row.id)
             }
             .onInsert(of: [.plainText]) { index, providers in
-                guard let reorder, sortOrder.isEmpty, let provider = providers.first else { return }
+                guard let reorder, isInListOrder, let provider = providers.first else { return }
                 _ = provider.loadObject(ofClass: NSString.self) { id, _ in
                     guard let id = id as? String else { return }
                     Task { @MainActor in reorder(id, index) }
@@ -180,6 +180,13 @@ struct TrackTable: View {
             playlistService: playlistService,
             navigationCoordinator: navigationCoordinator,
         )
+    }
+
+    /// Whether the rows stand in the list's own order: unsorted, or sorted by # ascending, which
+    /// the header leaves behind once clicked back.
+    private var isInListOrder: Bool {
+        guard let first = sortOrder.first else { return true }
+        return sortOrder.count == 1 && first.keyPath == \TrackTableRow.number && first.order == .forward
     }
 
     /// The row a click or a menu names: the first of the selection.
