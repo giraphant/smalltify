@@ -201,6 +201,8 @@
 "speakers.output_device" = "Output Device";
 "speakers.spotify_connect" = "Spotify Connect";
 "speakers.airplay_hint" = "Chooses an AirPlay receiver for this Mac's output. Needs access to the local network.";
+"speakers.airplay_hint_app_only" = "Sends only Spotifly to the receiver; the rest of the Mac's sound stays here. The receiver's volume is in the picker.";
+"now_playing.airplay" = "AirPlay";
 "speakers.airplay_disabled_hint" = "AirPlay is only available when Spotifly is the active device";
 "speakers.spotify_connect_hint" = "Shows every device connected to your account right now.";
 

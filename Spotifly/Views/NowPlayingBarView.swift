@@ -14,6 +14,7 @@ struct NowPlayingBarView: View {
     @Environment(TrackService.self) private var trackService
     @Environment(\.displayScale) private var displayScale
     @Environment(PlaybackViewModel.self) private var playbackViewModel
+    @Environment(PlayerModel.self) private var player
     @Environment(WindowState.self) private var windowState
 
     @State private var cachedAlbumArtImage: Image?
@@ -102,13 +103,21 @@ struct NowPlayingBarView: View {
 
             trackMenu
 
-            Button {
-                exitMiniPlayerIfNeeded()
-                navigationCoordinator.selectNavigationItem(.speakers)
-            } label: {
-                Image(systemName: "airplay.audio")
+            // The AirPlay picker for Spotifly alone while it plays here through its own player;
+            // otherwise the way to Wiedergabe auf, where the device it plays on is chosen.
+            if SpotifyPlayer.usesAVPlayerOutput, player.isPlayingHere {
+                AirPlayRoutePickerView.spotifly
+                    .frame(width: 26, height: 22)
+                    .help("now_playing.airplay")
+            } else {
+                Button {
+                    exitMiniPlayerIfNeeded()
+                    navigationCoordinator.selectNavigationItem(.speakers)
+                } label: {
+                    Image(systemName: "airplay.audio")
+                }
+                .named("now_playing.playing_on")
             }
-            .named("now_playing.playing_on")
 
             if fit == .everything {
                 VolumeControl()

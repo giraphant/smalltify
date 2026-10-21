@@ -89,7 +89,7 @@ struct SpeakersView: View {
             // `plans/open/spotifly-only-airplay.md` puts Spotifly's audio alone behind it.
             Section {
                 LabeledContent {
-                    AirPlayRoutePickerView()
+                    AirPlayRoutePickerView.spotifly
                         .frame(width: 30, height: 24)
                         .disabled(!isAirPlayEnabled)
                         .opacity(isAirPlayEnabled ? 1 : 0.5)
@@ -102,7 +102,8 @@ struct SpeakersView: View {
             } header: {
                 Text("speakers.audio_output")
             } footer: {
-                Text(isAirPlayEnabled ? "speakers.airplay_hint" : "speakers.airplay_disabled_hint")
+                Text(!isAirPlayEnabled ? "speakers.airplay_disabled_hint"
+                    : SpotifyPlayer.usesAVPlayerOutput ? "speakers.airplay_hint_app_only" : "speakers.airplay_hint")
             }
 
             ConnectionSection {
