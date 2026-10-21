@@ -67,7 +67,7 @@ final class SearchService {
 
         do {
             let page = try await fetch(kind, query: query, offset: results.nextOffset[kind] ?? 0)
-            store.appendSearchResults(page.ids, to: kind, sent: page.sent, pageSize: Self.pageSize, for: query)
+            store.appendSearchResults(page.ids, to: kind, sent: page.sent, pageSize: Self.pageSize, for: query, onto: results.id)
         } catch {
             debugLog("SearchService", "More \(kind) for \(query) failed: \(error)")
         }

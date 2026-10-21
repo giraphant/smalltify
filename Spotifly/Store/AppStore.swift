@@ -581,8 +581,11 @@ final class AppStore {
         searchCacheEvictionRevision &+= 1
     }
 
-    /// Adds a further page of one kind to `query`'s results, if they are still kept.
-    func appendSearchResults(_ ids: [String], to kind: SearchKind, sent: Int, pageSize: Int, for query: String) {
+    /// Adds a further page of one kind to `query`'s results, if they are still kept and still
+    /// the run it was loaded for (`SearchResults.id`): a search run again meanwhile starts its
+    /// offsets over, and a page from the old run would skip past a page of the new.
+    func appendSearchResults(_ ids: [String], to kind: SearchKind, sent: Int, pageSize: Int, for query: String, onto run: UUID) {
+        guard searchResultsByQuery[query]?.id == run else { return }
         searchResultsByQuery[query]?.append(ids, to: kind, sent: sent, pageSize: pageSize)
     }
 

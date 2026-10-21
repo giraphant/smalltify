@@ -399,6 +399,9 @@ enum TrackProvider: String, Codable {
 /// Each list is deduplicated: relinking can give two track results one market id (`AGENTS.md`,
 /// "Track identity is the market id"), and the page keys its rows by id.
 struct SearchResults: Encodable {
+    /// Which run of the search these are: a page loaded for an earlier run of the same query
+    /// does not continue a later one's offsets.
+    let id = UUID()
     private(set) var ids: [SearchKind: [String]] = [:]
     /// Where each kind's next page starts: every result Spotify has sent, duplicates included,
     /// as `PaginationState` counts its offset.
