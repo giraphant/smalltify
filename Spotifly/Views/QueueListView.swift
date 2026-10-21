@@ -54,12 +54,19 @@ struct QueueListView: View {
         var rows: [TrackTableRow] = []
         var plays: [PlaybackViewModel.QueueRow] = []
         var currentRowId: String?
+        var usedIds: Set<String> = []
 
         func append(_ entry: QueueEntry, _ track: Track, _ play: PlaybackViewModel.QueueRow) {
-            let id: String = switch play {
+            var id: String = switch play {
             case let .previous(index, _, _): entry.uid ?? "p\(index)"
             case .current: entry.uid ?? "current"
             case let .next(index, _, _): entry.uid ?? "n\(index)"
+            }
+            // A context repeating wraps into the next tracks with the uids of rows already
+            // listed; a table needs every id once.
+            if !usedIds.insert(id).inserted {
+                id += "#\(rows.count)"
+                usedIds.insert(id)
             }
             if case .current = play {
                 currentRowId = id
