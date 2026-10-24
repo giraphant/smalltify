@@ -48,7 +48,21 @@ struct LoggedInView: View {
                 NavigationSplitView(columnVisibility: $columnVisibility) {
                     sidebarView()
                 } detail: {
-                    contentRegion
+                    // The Now Playing column beside the page, laid out by SwiftUI. As the system
+                    // inspector (`.inspector`), opening or closing it beside a table or a list
+                    // with the window near its narrowest ended the app, AppKit giving up on
+                    // the window's constraints ("more Update Constraints in Window passes than
+                    // there are views in the window"); as a column it grows the window the way
+                    // a page does (`plans/done/redesign-inspector.md`).
+                    HStack(spacing: 0) {
+                        contentRegion
+                        if windowState.isInspectorPresented {
+                            Divider()
+                            NowPlayingInspector()
+                                .frame(width: NowPlayingInspector.width)
+                                .frame(maxHeight: .infinity)
+                        }
+                    }
                 }
                 .navigationSplitViewStyle(.automatic)
                 // Always-visible search field, attached to the NavigationSplitView
