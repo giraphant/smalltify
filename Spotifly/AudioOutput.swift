@@ -13,7 +13,8 @@ import Synchronization
 /// send to a receiver alone, the rest of the Mac's audio staying where it is
 /// (`plans/done/avplayer-output.md`).
 ///
-/// The pipeline pushes interleaved 44.1 kHz stereo Float32 PCM and paces itself on `enqueue`,
+/// The pipeline pushes interleaved 44.1 kHz stereo Float32 PCM, which the stream carries as 16-bit
+/// integers (`int16`), and paces itself on `enqueue`,
 /// which suspends until the output wants more; a paused output wants nothing, so the decode waits
 /// out a pause inside it. The first buffer after a `restart` plays at playhead zero and each one
 /// after it directly follows, which is all the pipeline's gapless playback is: the next track is
@@ -31,7 +32,7 @@ import Synchronization
 actor AudioOutput {
     nonisolated static let sampleRate = 44100
     nonisolated static let channelCount = 2
-    nonisolated static let bytesPerFrame = MemoryLayout<Float>.size * channelCount
+    nonisolated static let bytesPerFrame = MemoryLayout<Int16>.size * channelCount
 
     /// What became of a buffer handed to `enqueue`.
     enum Enqueued {
@@ -84,7 +85,7 @@ actor AudioOutput {
     func enqueue(_ samples: Data, frames: Int) async -> Enqueued {
         guard !Task.isCancelled, let stream else { return .flushed }
 
-        stream.append(samples)
+        stream.append(Self.int16(samples))
         streamFrames += Int64(frames)
 
         while !Task.isCancelled {
@@ -116,6 +117,26 @@ actor AudioOutput {
             try? await Task.sleep(for: .seconds(min(cap, max(0.05, ahead - (Self.aheadTarget - 1)))))
         }
         return .flushed
+    }
+
+    /// Float32 samples as the 16-bit ones the stream carries, clipped to full scale.
+    ///
+    /// Half the bytes of Float32, for the stream and for the player's caches of it: AVFoundation's
+    /// byte cache for the item took 14 MB instead of 25 (`plans/open/memory-while-playing.md`).
+    /// Nothing audible is lost: the files are Ogg Vorbis, whose coding noise lies far above 16
+    /// bits', and the player's volume applies after the samples.
+    nonisolated static func int16(_ samples: Data) -> Data {
+        samples.withUnsafeBytes { raw in
+            let floats = raw.bindMemory(to: Float.self)
+            var out = Data(count: floats.count * MemoryLayout<Int16>.size)
+            out.withUnsafeMutableBytes { raw in
+                let ints = raw.bindMemory(to: Int16.self)
+                for i in floats.indices {
+                    ints[i] = Int16((max(-1, min(1, floats[i])) * 32767).rounded())
+                }
+            }
+            return out
+        }
     }
 
     // MARK: - Playback Control
@@ -204,6 +225,7 @@ final class AudioOutputPlayer {
     private var wantsToPlay = false {
         didSet { lockedState.withLock { $0.wantsToPlay = wantsToPlay } }
     }
+
     /// Numbers the seeks, so only the latest plays when done, or is made again.
     private var seeks = 0
     /// Whether a seek is under way: the player is held for it, which is not a stall.
@@ -513,7 +535,7 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         }
     }
 
-    /// Keeps a minute of audio, about 20 MB, behind the earliest offset a waiting request is at,
+    /// Keeps a minute of audio, about 10 MB, behind the earliest offset a waiting request is at,
     /// for a player that asks again a little way back, dropping whole chunks. The player reads
     /// about as far ahead as the output writes, 30 s, so this reaches some 30 s behind what plays.
     private func trim() {
@@ -531,7 +553,7 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
 
     // MARK: CAF
 
-    /// A CAF header for interleaved little-endian Float32 stereo at 44.1 kHz: the file header,
+    /// A CAF header for interleaved little-endian 16-bit stereo at 44.1 kHz: the file header,
     /// the `desc` chunk, and the `data` chunk's header and edit count, 68 bytes.
     static func cafHeader(dataBytes: Int64) -> Data {
         var data = Data()
@@ -550,11 +572,11 @@ final nonisolated class PCMStream: NSObject, AVAssetResourceLoaderDelegate, @unc
         append(Int64(32))
         append(Float64(AudioOutput.sampleRate).bitPattern)
         append("lpcm")
-        append(UInt32(1 | 2)) // float, little-endian
+        append(UInt32(2)) // little-endian, signed integers
         append(UInt32(AudioOutput.bytesPerFrame)) // bytes per packet
         append(UInt32(1)) // frames per packet
         append(UInt32(AudioOutput.channelCount))
-        append(UInt32(32)) // bits per channel
+        append(UInt32(16)) // bits per channel
 
         append("data")
         append(dataBytes + 4) // the edit count is part of the chunk
