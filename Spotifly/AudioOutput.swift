@@ -277,7 +277,7 @@ final class AudioOutputPlayer {
         seek(to: CMTime(value: frame, timescale: CMTimeScale(AudioOutput.sampleRate)), number: seeks, attempt: 1)
         // Seeks take milliseconds. On a HomePod one waited for the player's reader, which waits
         // for bytes at the end of the stream, while the item played on (`aheadLimit`,
-        // `plans/open/airplay-stalls.md`): say so if it happens, with whether the item plays.
+        // `plans/done/airplay-stalls.md`): say so if it happens, with whether the item plays.
         Task { @MainActor [number = seeks] in
             try? await Task.sleep(for: .seconds(2))
             guard number == seeks, seekInFlight else { return }

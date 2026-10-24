@@ -1,8 +1,8 @@
 # On a HomePod, the player can stop answering pause and seek
 
-Status: **Open**, fixed in #220 (`airplay/stalls`) and checked on the Küche HomePod on
-2026-10-24; open until a manual run on the HomePod confirms it. The output writes 30 s ahead of
-the playhead, and up to 120 s while the playhead stands still though the player is meant to play.
+Status: **Done**, 2026-10-24, in #220 (`airplay/stalls`); checked on the Küche HomePod, by Claude
+and then in Ralph's run of the testing plan. The output writes 30 s ahead of the playhead, and up
+to 120 s while the playhead stands still though the player is meant to play.
 Components: `Spotifly/AudioOutput.swift`
 Found: 2026-10-21, rerunning #219's checks on the Küche HomePod: a seek took 18 s, and the app
 crashed when it landed (the crash is fixed on #219, 10a9e89).
@@ -78,4 +78,7 @@ still; writing up to 120 s ahead" is logged once each time it starts. A seek sti
   in 30 ms or less; nothing logged as not done; "stands still" logged once per route switch, as
   the HomePod holds the playhead for about a second taking over. A minute's playback after it:
   footprint 278–294 MB, no dropouts at the microphone.
-- To do: Ralph's manual run of the testing plan's AirPlay section on this build.
+- Ralph's run of the testing plan's AirPlay section on this build (2026-10-24): 23 seeks each
+  landed in 30 ms or less, the pause silenced the HomePod, and nothing was logged as not done.
+  Its memory reading, 344 MB about 3½ minutes after launch in a Debug build, is a question of its
+  own.
