@@ -82,16 +82,13 @@ struct SpeakersView: View {
                 Text("speakers.spotify_connect_hint")
             }
 
-            // The AirPlay picker for Spotifly's own player, while it plays here. No device name
-            // beside it: the Mac's default output is not where Spotifly plays once its player is
-            // routed elsewhere, and nothing reports that player's route.
+            // Where AirPlay is chosen: the bar's picker, the one picker there is, which a second
+            // here would take from the bar (`AirPlayRoutePickerView`). No device name: the Mac's
+            // default output is not where Spotifly plays once routed, and nothing reports the
+            // player's route.
             Section {
-                LabeledContent("speakers.output_device") {
-                    AirPlayRoutePickerView()
-                        .frame(width: 30, height: 24)
-                        .disabled(!isAirPlayEnabled)
-                        .opacity(isAirPlayEnabled ? 1 : 0.5)
-                }
+                Label("speakers.airplay_in_bar", systemImage: "airplay.audio")
+                    .foregroundStyle(isAirPlayEnabled ? .primary : .secondary)
             } header: {
                 Text("speakers.audio_output")
             } footer: {

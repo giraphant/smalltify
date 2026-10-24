@@ -198,9 +198,9 @@
 "speakers.empty" = "Keine Lautsprecher gefunden";
 "speakers.empty_hint" = "Öffne Spotify auf einem anderen Gerät, um es hier zu sehen";
 "speakers.audio_output" = "AirPlay";
-"speakers.output_device" = "Ausgabegerät";
+"speakers.airplay_in_bar" = "Wähle einen Empfänger mit der AirPlay-Taste in der Wiedergabeleiste.";
 "speakers.spotify_connect" = "Spotify Connect";
-"speakers.airplay_hint" = "Sendet nur Spotifly an den Empfänger; alle anderen Töne bleiben auf diesem Mac. Die Lautstärke des Empfängers stellst du in der Auswahl ein.";
+"speakers.airplay_hint" = "Sendet nur Spotifly an den Empfänger; alle anderen Töne bleiben auf diesem Mac. Die Lautstärke des Empfängers stellst du im AirPlay-Menü ein.";
 "now_playing.airplay" = "AirPlay";
 "speakers.airplay_disabled_hint" = "AirPlay ist nur verfügbar, wenn Spotifly das aktive Gerät ist";
 "speakers.spotify_connect_hint" = "Zeigt alle Geräte, die gerade mit deinem Konto verbunden sind.";
