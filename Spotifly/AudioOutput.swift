@@ -47,6 +47,19 @@ actor AudioOutput {
     /// player's buffer empty about 5 s after a seek, the Mac sending well ahead of what it plays;
     /// with 3 s the player starved here after a resume.
     private static let aheadTarget = 30.0
+    /// Written ahead at most, while the player is meant to play and its playhead stands still.
+    ///
+    /// A receiver such as a HomePod takes in what is written at once, so the player's reader
+    /// soon stands at the end of the stream, waiting for bytes with a lock held that a seek, a
+    /// pause and even reading the item's time wait for (sampled: 85 s on the main thread).
+    /// Written ahead of a playhead that does not move, nothing more came: a seek never finished
+    /// while the receiver played on, or a playhead froze after one. Bytes beyond the reader let
+    /// it go on. Writing 120 s ahead all the time did the same, at about 150 MB more.
+    private static let aheadLimit = 120.0
+    /// The playhead when it last moved, and when that was.
+    private var lastPlayhead: (frames: Int64, at: ContinuousClock.Instant) = (0, .now)
+    /// Whether the output writes past the target for a playhead that stands still, to log once.
+    private var feedingStillPlayhead = false
 
     /// The session's stream.
     private var stream: PCMStream?
@@ -79,15 +92,27 @@ actor AudioOutput {
             if state.failed {
                 return .failed
             }
+            let played = playedFrames
+            if played != lastPlayhead.frames {
+                lastPlayhead = (played, .now)
+            }
             let written = streamFrames - origin.withLock { $0 }
-            let ahead = Double(written - playedFrames) / Double(Self.sampleRate)
-            if ahead < Self.aheadTarget {
+            let ahead = Double(written - played) / Double(Self.sampleRate)
+            let standsStill = state.wantsToPlay && lastPlayhead.at.duration(to: .now) > .milliseconds(500)
+            if standsStill != feedingStillPlayhead {
+                feedingStillPlayhead = standsStill
+                if standsStill {
+                    debugLog("AudioOutput", "The playhead stands still; writing up to \(Int(Self.aheadLimit)) s ahead")
+                }
+            }
+            if ahead < Self.aheadTarget || (standsStill && ahead < Self.aheadLimit) {
                 return .accepted
             }
             // Asleep until a second under the target, so the decode fills that second in one
             // go: checked every 50 ms, the wait woke the app 12 times a second, against 3 for the
-            // renderer this replaced. A paused player, which takes nothing, is looked at every 5 s.
-            let cap = state.status == .paused ? 5.0 : 1.0
+            // renderer this replaced. A playhead that stops is noticed within the second; a
+            // paused player, which takes nothing, is looked at every 5 s.
+            let cap = state.wantsToPlay ? 1.0 : 5.0
             try? await Task.sleep(for: .seconds(min(cap, max(0.05, ahead - (Self.aheadTarget - 1)))))
         }
         return .flushed
@@ -117,6 +142,8 @@ actor AudioOutput {
     }
 
     func resume() async {
+        // Stood still while paused: from now on, standing still is a stall.
+        lastPlayhead = (playedFrames, .now)
         await output.resume()
     }
 
@@ -162,6 +189,8 @@ final class AudioOutputPlayer {
         var timebase: UncheckedTimebase?
         /// Whether the item has failed, after which it plays nothing more.
         var failed = false
+        /// Whether the output means the player to play, whatever it does.
+        var wantsToPlay = false
     }
 
     private nonisolated let lockedState = Mutex(State())
@@ -172,7 +201,9 @@ final class AudioOutputPlayer {
     /// Whether the output means the player to play. A player that stalls with nothing to wait for
     /// pauses itself, and stays paused: measured on resuming on a HomePod, where it flipped to
     /// paused 70 ms after playing, with data loaded beyond the playhead.
-    private var wantsToPlay = false
+    private var wantsToPlay = false {
+        didSet { lockedState.withLock { $0.wantsToPlay = wantsToPlay } }
+    }
     /// Numbers the seeks, so only the latest plays when done, or is made again.
     private var seeks = 0
     /// Whether a seek is under way: the player is held for it, which is not a stall.
