@@ -53,7 +53,7 @@ struct LoggedInView: View {
                 .navigationSplitViewStyle(.automatic)
                 .inspector(isPresented: Bindable(windowState).isInspectorPresented) {
                     NowPlayingInspector()
-                        .inspectorColumnWidth(320)
+                        .inspectorColumnWidth(WindowState.inspectorWidth)
                 }
                 // Always-visible search field, attached to the NavigationSplitView
                 // itself — attaching it to an inner view inside the detail column
@@ -143,8 +143,10 @@ struct LoggedInView: View {
                     contentRouter
                         .frame(minWidth: 200, idealWidth: 260, maxWidth: 300, maxHeight: .infinity)
 
+                    // A width of its own to keep, so the window's minimum on these pages is the
+                    // panes' and grows by the inspector's when it opens (`WindowState`).
                     LoggedInDetailRouterView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
                         .toolbar {
                             LoggedInDetailToolbar()
                         }
