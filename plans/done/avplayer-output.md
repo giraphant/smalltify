@@ -38,7 +38,8 @@ until the output wants more, `restart`, `pause`, `resume`, `stop`, `playedFrames
 playhead, `setVolume`. It decodes the next track into the same output behind the current one,
 which is all its gapless playback is. `AudioOutput` keeps that contract over an `AVPlayer`:
 
-- The player's item is a stream the output writes: a CAF of 44.1 kHz stereo Float32 PCM, served
+- The player's item is a stream the output writes: a CAF of 44.1 kHz stereo 16-bit PCM (Float32
+  until `plans/done/memory-while-playing.md` halved it), served
   through an `AVAssetResourceLoader` delegate under a custom URL scheme, with a data chunk
   declared a week long. **One item serves the session**: a `restart` (a load, a seek) is a held
   seek within it to the end of what is written, where the new audio begins, and plays once the
