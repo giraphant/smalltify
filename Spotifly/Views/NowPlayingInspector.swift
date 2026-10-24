@@ -14,6 +14,8 @@ struct NowPlayingInspector: View {
     @Environment(PlayerModel.self) private var player
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
+    static let width: CGFloat = 320
+
     /// How many of the next tracks it lists.
     private static let upNextLimit = 8
 
