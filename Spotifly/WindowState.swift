@@ -12,8 +12,18 @@ import SwiftUI
 @Observable
 final class WindowState {
     var isMiniPlayerMode = false
-    /// Whether the Now Playing inspector shows beside the content.
-    var isInspectorPresented = false
+    /// Whether the Now Playing inspector shows beside the content. Opening it first widens a
+    /// window too narrow for it (`makeRoomForInspector`).
+    var isInspectorPresented = false {
+        didSet {
+            if isInspectorPresented, !oldValue {
+                makeRoomForInspector()
+            }
+        }
+    }
+
+    /// The inspector's width, as `LoggedInView` sets it.
+    static let inspectorWidth: CGFloat = 320
 
     /// Store the previous window frame to restore when exiting mini player
     private var savedWindowFrame: NSRect?
@@ -32,6 +42,26 @@ final class WindowState {
 
     private func resolvedWindow(preferred window: NSWindow? = nil) -> NSWindow? {
         window ?? NSApp.mainWindow ?? NSApp.keyWindow ?? NSApp.windows.first
+    }
+
+    /// Widens the window to its minimum width so far plus the inspector's, before SwiftUI lays the
+    /// inspector out, keeping it on its screen.
+    ///
+    /// On a page with a list beside its detail the window did not grow for the inspector by
+    /// itself, as it does on other pages: too narrow for it, the split views inside it set each
+    /// other's size until AppKit ended the app ("more Update Constraints in Window passes than
+    /// there are views in the window"; from 686 pt, 2026-10-24). Not animated, so it is done
+    /// before the inspector arrives.
+    private func makeRoomForInspector() {
+        guard !isMiniPlayerMode, let window = resolvedWindow() else { return }
+        let width = window.minSize.width + Self.inspectorWidth
+        guard window.frame.width < width else { return }
+        var frame = window.frame
+        frame.size.width = width
+        if let visible = window.screen?.visibleFrame, frame.maxX > visible.maxX {
+            frame.origin.x = max(visible.minX, visible.maxX - width)
+        }
+        window.setFrame(frame, display: true)
     }
 
     private func enterMiniPlayerMode() {
