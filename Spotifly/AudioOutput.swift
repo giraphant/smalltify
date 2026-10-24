@@ -122,7 +122,7 @@ actor AudioOutput {
     /// Float32 samples as the 16-bit ones the stream carries, clipped to full scale.
     ///
     /// Half the bytes of Float32, for the stream and for the player's caches of it: AVFoundation's
-    /// byte cache for the item took 14 MB instead of 25 (`plans/open/memory-while-playing.md`).
+    /// byte cache for the item took 14 MB instead of 25 (`plans/done/memory-while-playing.md`).
     /// Nothing audible is lost: the files are Ogg Vorbis, whose coding noise lies far above 16
     /// bits', and the player's volume applies after the samples.
     nonisolated static func int16(_ samples: Data) -> Data {
