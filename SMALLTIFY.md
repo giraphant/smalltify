@@ -5,7 +5,7 @@
 - 上游：https://github.com/ralph/Spotifly
 - 本人 fork：https://github.com/giraphant/smalltify
 - 已抽查的基线：`6077b513205f5a602ec08df0ceb5dcb4f08bc66d`（1.4.0，2026-10-24）。
-- 本地源码：`/Users/ramudai/Vibe/smalltify`
+- 本地源码：`/Users/ramudai/Vibe/swiftify`
 - 当前试用版：`/Applications/Smalltify Soloist.app`；旧版 `/Applications/Smalltify.app` 保留。内部构建目标和可执行文件仍名为 Spotifly。两者共享 Bundle ID，不要同时运行。
 - 独立 Bundle ID：`io.github.giraphant.smalltify`，独立沙盒容器和 Keychain 服务名称。
 - 自己的 Developer ID 签名，保留 App Sandbox、Hardened Runtime。

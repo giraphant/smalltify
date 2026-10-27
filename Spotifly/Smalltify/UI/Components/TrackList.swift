@@ -45,9 +45,11 @@ struct TrackList<Header: View>: View {
     var context: PlaybackContext?
     /// Case-insensitive filter on title, artists and album.
     var filter = ""
-    /// Shows sortable column headers; nil hides the header row entirely.
+    /// Makes the column titles sort the list; without it they are plain labels.
     var sort: Binding<TrackSort?>?
     var loader: PagedLoader?
+    /// The "# 歌名 … 时长" row above the tracks; compact lists such as search's leave it out.
+    var showsColumnTitles = true
     /// The album's own artists, which `.artistsUnderTitle` leaves out from under each title.
     var albumArtists: [CatalogArtist] = []
     /// For "没有匹配「…」的歌曲" and empty pages.
@@ -63,7 +65,7 @@ struct TrackList<Header: View>: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .selectionDisabled()
-            if sort != nil || columns.contains(.album) || columns.contains(.artist) {
+            if showsColumnTitles {
                 TrackHeaderRow(columns: columns, sort: sort)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
