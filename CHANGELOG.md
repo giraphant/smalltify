@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
+
 ### Added
 - Smalltify official-service prototype: own-client PKCE Web API search and read-only library, native setup and browsing, Spotify link playback, and Soloist transport/status controls.
 - Local-only pinned Spotify Soloist 1.3.10.19 integration with original vendor signature validation, SHA-256 checks, random loopback WebSocket, process shutdown, and configurable persistent disk cache (2 GB default).

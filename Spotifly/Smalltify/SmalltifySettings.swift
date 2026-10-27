@@ -11,13 +11,13 @@ struct SmalltifySettings: View {
                 TextField("Client ID", text: $model.clientID)
                     .autocorrectionDisabled()
                 LabeledContent("Redirect URI") {
-                    Text("http://127.0.0.1/login").textSelection(.enabled)
+                    Text(SmalltifyOAuth.redirectURI).textSelection(.enabled)
                     Button("复制") {
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString("http://127.0.0.1/login", forType: .string)
+                        NSPasteboard.general.setString(SmalltifyOAuth.redirectURI, forType: .string)
                     }
                 }
-                Text("先在 Developer Dashboard 的应用设置中添加以上回调地址，不带端口。使用你自己的 Client ID，无需 Client Secret。")
+                Text("先在 Developer Dashboard 的应用设置中添加以上完整回调地址，保留端口 43821。使用你自己的 Client ID，无需 Client Secret。")
                     .font(.callout).foregroundStyle(.secondary)
                 HStack {
                     Button(model.signedIn ? "重新授权文库" : "登录 Spotify 文库") { model.signIn() }

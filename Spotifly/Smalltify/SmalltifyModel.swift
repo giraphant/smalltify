@@ -58,7 +58,12 @@ import Observation
         authTask = Task {
             let server = LoopbackCallbackServer()
             do {
-                let port = try await server.start()
+                let port: UInt16
+                do {
+                    port = try await server.start(port: SmalltifyOAuth.callbackPort)
+                } catch {
+                    throw SmalltifyError("无法监听本机端口 \(SmalltifyOAuth.callbackPort)。请关闭其他 Smalltify 实例或占用此端口的程序后重试。")
+                }
                 let verifier = PKCE.codeVerifier()
                 let state = PKCE.randomState()
                 let url = try OfficialWebAPI.authorizationURL(clientID: id, port: port, verifier: verifier, state: state)

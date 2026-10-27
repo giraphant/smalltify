@@ -22,7 +22,7 @@
 
 ### 本人需要完成的设置
 
-1. 在 [Developer Dashboard](https://developer.spotify.com/dashboard) 的应用设置中添加 Redirect URI：`http://127.0.0.1/login`，**不带端口**。Spotify 官方允许 loopback URI 在授权请求中动态添加端口。
+1. 在 [Developer Dashboard](https://developer.spotify.com/dashboard) 的应用设置中添加 Redirect URI：`http://127.0.0.1:43821/login`，**保留端口 43821**。虽然文档允许省略端口，但 2026-10-27 实际 Dashboard 前端校验要求 HTTP URI 显式带端口，故客户端监听相同固定端口。
 2. 在 Smalltify「设置与连接」填写该应用的 **Client ID**，点击「登录 Spotify 文库」，在浏览器授权。**不需要 Client Secret**。当前只申请 `user-library-read playlist-read-private playlist-read-collaborative`。
 3. 在 Dashboard 单独生成 **Soloist API Key**（Premium），在 Smalltify 本地安全输入框填写，选择缓存上限（默认 2 GB），保存并启动。
 4. 首次在官方 Spotify 的设备列表选择 **Smalltify**。文库与播放器使用同一 Spotify 账号。配对后 Soloist 保留会话，可关闭官方客户端。
@@ -82,3 +82,9 @@ Soloist 必须由使用者从 [官方页面](https://developer.spotify.com/docum
 - [Soloist CLI](https://developer.spotify.com/documentation/soloist/reference/command-line)
 - [Soloist WebSocket](https://developer.spotify.com/documentation/soloist/reference/websocket-api)
 - [Soloist 介绍与无损能力](https://developer.spotify.com/blog/2026-08-13-introducing-spotify-soloist)
+
+## 回调地址修复（build 11）
+
+用户实测无端口地址无法保存。读取官方 Dashboard `/dashboard/create` 加载的公开 JavaScript chunk `92-8f78c7c7233d3ebf.js` 后，确认其 HTTP URI 校验正则要求 `:<1–5 位数字>`。这与文档关于省略端口的说明不一致。build 11 的本地监听、授权请求和设置页统一使用 `http://127.0.0.1:43821/login`，不改用未实现的 HTTPS。端口已占用时提示用户处理，不悄悄改成未登记端口。
+
+修复验证：21 个测试通过，Release/arm64 构建通过；用户授权后 Apple 公证 Accepted（`ca4df360-2f33-4ee5-8c1f-4daaafb3a7bb`）。通过先暂存完整 app、再移动旧 app 到回滚目录的标准替换方式，已在 `/Applications/Smalltify Soloist.app` 安装 build 11，无需修改系统保护设置。安装后签名、公证票据及 Gatekeeper 验证通过。旧 build 10 原包位于 `build/rollback-1.4.0-10/Smalltify-original.app`。真实账号授权仍待本人完成。

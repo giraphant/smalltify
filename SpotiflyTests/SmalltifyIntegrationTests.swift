@@ -6,15 +6,37 @@ struct SmalltifyProtocolTests {
     let trackID = "1234567890123456789012"
 
     @Test func ownClientUsesPKCEAndReadOnlyScopes() throws {
-        let url = try OfficialWebAPI.authorizationURL(clientID: "own-client", port: 54321, verifier: "verifier", state: "state")
+        let url = try OfficialWebAPI.authorizationURL(clientID: "own-client", port: SmalltifyOAuth.callbackPort, verifier: "verifier", state: "state")
         let parts = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         let query = Dictionary(uniqueKeysWithValues: (parts.queryItems ?? []).map { ($0.name, $0.value ?? "") })
         #expect(query["client_id"] == "own-client")
         #expect(query["code_challenge_method"] == "S256")
         #expect(query["code_challenge"] == PKCE.codeChallenge(for: "verifier"))
-        #expect(query["redirect_uri"] == "http://127.0.0.1:54321/login")
+        #expect(query["redirect_uri"] == "http://127.0.0.1:43821/login")
         #expect(query["scope"]?.contains("modify") == false)
         #expect(query["client_secret"] == nil)
+    }
+
+    @Test func dashboardAndAuthorizationUseTheSameExplicitPort() throws {
+        #expect(SmalltifyOAuth.redirectURI == "http://127.0.0.1:43821/login")
+        let url = try OfficialWebAPI.authorizationURL(clientID: "own-client", port: SmalltifyOAuth.callbackPort, verifier: "v", state: "s")
+        let parts = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(parts.queryItems?.first { $0.name == "redirect_uri" }?.value == SmalltifyOAuth.redirectURI)
+    }
+
+    @Test func loopbackListenerHonorsAnExplicitPort() async throws {
+        let probe = LoopbackCallbackServer()
+        let port = try await probe.start()
+        await probe.stop()
+        let server = LoopbackCallbackServer()
+        do {
+            let actual = try await server.start(port: port)
+            #expect(actual == port)
+            await server.stop()
+        } catch {
+            await server.stop()
+            throw error
+        }
     }
 
     @Test func searchQueryIsEncodedAsOneValue() throws {

@@ -16,8 +16,8 @@ import Network
 /// So the browser opens normally and the redirect lands here.
 ///
 /// One request, one answer, then the listener closes — nothing about this outlives the grant.
-/// The port is assigned by the system rather than fixed: Spotify accepts any loopback port for
-/// a first-party client id, and a hardcoded one would collide with whatever else is listening.
+/// Legacy callers use a system-assigned port. The official Web API caller requests the fixed
+/// port registered in Dashboard; an occupied port fails instead of changing the redirect URI.
 actor LoopbackCallbackServer {
     enum ServerError: Error, LocalizedError {
         case listenerFailed(String)
@@ -46,16 +46,19 @@ actor LoopbackCallbackServer {
     private var finished = false
     private var timeout: Task<Void, Never>?
 
-    /// Starts listening on a system-assigned loopback port and returns it.
+    /// Starts listening on the requested loopback port, or a system-assigned port for 0.
     ///
     /// Waits for the listener to reach `.ready`: until then the port is a placeholder, and
     /// advertising it would send Spotify a redirect to `127.0.0.1:0`, which reaches nothing.
-    func start() async throws -> UInt16 {
+    func start(port requestedPort: UInt16 = 0) async throws -> UInt16 {
         let parameters = NWParameters.tcp
-        parameters.allowLocalEndpointReuse = true
+        parameters.allowLocalEndpointReuse = false
         // Loopback only. The redirect never leaves this machine, so nothing else should be
         // able to reach the listener.
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
+        parameters.requiredLocalEndpoint = .hostPort(
+            host: .ipv4(.loopback),
+            port: NWEndpoint.Port(rawValue: requestedPort) ?? .any,
+        )
 
         let listener: NWListener
         do {
@@ -92,7 +95,7 @@ actor LoopbackCallbackServer {
                     } else {
                         result = .failure(ServerError.listenerFailed("no port assigned"))
                     }
-                case let .failed(error):
+                case let .failed(error), let .waiting(error):
                     result = .failure(ServerError.listenerFailed(String(describing: error)))
                 case .cancelled:
                     result = .failure(ServerError.listenerFailed("listener cancelled"))
