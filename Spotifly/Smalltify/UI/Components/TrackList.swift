@@ -7,7 +7,8 @@ struct TrackColumns: OptionSet, Hashable {
     static let artist = TrackColumns(rawValue: 1 << 1)
     static let album = TrackColumns(rawValue: 1 << 2)
     static let added = TrackColumns(rawValue: 1 << 3)
-    /// Artists under the title instead of a column, as an album's tracks show featured artists.
+    /// Artists under the title instead of a column, as an album's tracks show featured artists;
+    /// only for tracks whose artists differ from the list's `albumArtists`.
     static let artistsUnderTitle = TrackColumns(rawValue: 1 << 4)
 
     static let library: TrackColumns = [.cover, .artist, .album, .added]
@@ -47,6 +48,8 @@ struct TrackList<Header: View>: View {
     /// Shows sortable column headers; nil hides the header row entirely.
     var sort: Binding<TrackSort?>?
     var loader: PagedLoader?
+    /// The album's own artists, which `.artistsUnderTitle` leaves out from under each title.
+    var albumArtists: [CatalogArtist] = []
     /// For "没有匹配「…」的歌曲" and empty pages.
     var emptyMessage = "没有歌曲"
     @ViewBuilder var header: () -> Header
@@ -67,7 +70,8 @@ struct TrackList<Header: View>: View {
                     .selectionDisabled()
             }
             ForEach(rows) { row in
-                TrackRowView(row: row, columns: columns, isPlaying: model.player.displaySnapshot.uri == row.item.uri) {
+                TrackRowView(row: row, columns: columns, isPlaying: model.player.displaySnapshot.uri == row.item.uri,
+                             albumArtists: albumArtists) {
                     model.play(row.item, in: context)
                 }
                 .onAppear { if row.id == tracks.count - 1 { loader?.loadMore() } }
@@ -131,9 +135,9 @@ struct TrackList<Header: View>: View {
 extension TrackList where Header == EmptyView {
     init(tracks: [CatalogItem], columns: TrackColumns = .library, context: PlaybackContext? = nil,
          filter: String = "", sort: Binding<TrackSort?>? = nil, loader: PagedLoader? = nil,
-         emptyMessage: String = "没有歌曲") {
+         albumArtists: [CatalogArtist] = [], emptyMessage: String = "没有歌曲") {
         self.init(tracks: tracks, columns: columns, context: context, filter: filter, sort: sort,
-                  loader: loader, emptyMessage: emptyMessage) { EmptyView() }
+                  loader: loader, albumArtists: albumArtists, emptyMessage: emptyMessage) { EmptyView() }
     }
 }
 
@@ -142,6 +146,7 @@ struct TrackRowView: View {
     let row: TrackListRow
     let columns: TrackColumns
     let isPlaying: Bool
+    var albumArtists: [CatalogArtist] = []
     let play: () -> Void
 
     var body: some View {
@@ -169,7 +174,8 @@ struct TrackRowView: View {
                         .fontWeight(isPlaying ? .semibold : .regular)
                         .lineLimit(1)
                         .help(row.item.name)
-                    if columns.contains(.artistsUnderTitle), !row.item.artists.isEmpty {
+                    if columns.contains(.artistsUnderTitle), !row.item.artists.isEmpty,
+                       row.item.artists.map(\.uri) != albumArtists.map(\.uri) {
                         ArtistLinks(artists: row.item.artists).font(.caption).foregroundStyle(.secondary)
                     }
                 }

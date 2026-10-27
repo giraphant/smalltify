@@ -36,6 +36,8 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     var clientID: String
     var signedIn: Bool
     var authorizing = false
+    /// Why the last sign-in failed, for the settings page; cleared when the next one starts.
+    private(set) var signInError: String?
     var hasPlayerKey: Bool
     var cacheMB: Int
     /// Signed in with fewer scopes than the current features need.
@@ -278,10 +280,12 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
         guard !isFixture else { return notices.toast("演示模式：不会真的登录") }
         let id = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard id.count == 32, id.utf8.allSatisfy({ (48 ... 57).contains($0) || (65 ... 70).contains($0) || (97 ... 102).contains($0) }) else {
+            signInError = "Client ID 应为 32 位十六进制字符，当前只有 \(id.count) 位。"
             notices.show(.init(message: "请在设置中填写 Dashboard 中的 32 位 Client ID。Client Secret 不需要填写。"))
             return
         }
         authorizing = true
+        signInError = nil
         authTask = Task {
             let server = LoopbackCallbackServer()
             do {
@@ -320,7 +324,10 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
                 notices.toast("Spotify 已授权")
                 loadProfile()
             } catch {
-                if !Task.isCancelled { notices.show(.init(message: error.localizedDescription)) }
+                if !Task.isCancelled {
+                    signInError = error.localizedDescription
+                    notices.show(.init(message: error.localizedDescription))
+                }
             }
             await server.stop()
             authorizing = false
