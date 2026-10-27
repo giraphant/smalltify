@@ -167,6 +167,8 @@
         }
     }
 #else
+    import SwiftUI
+
     extension View {
         func fixtureAppearance() -> some View { self }
     }
