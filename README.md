@@ -1,3 +1,5 @@
+> 当前 Soloist 试用版已切换到自有 Client ID + 官方 Web API + Soloist，功能范围、设置步骤和验证状态见 [SMALLTIFY.md](SMALLTIFY.md)。下面保留上游 README，不能视为本试用版的功能承诺。
+
 > **Smalltify：个人源码构建 fork。** 本地构建、版本基线与安全边界见 [SMALLTIFY.md](SMALLTIFY.md)。下文保留上游说明，其中下载及 Homebrew 安装链接属于上游。
 
 # Spotifly

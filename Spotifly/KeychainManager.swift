@@ -59,7 +59,7 @@ nonisolated enum KeychainManager {
 
     // MARK: - Private Keychain Operations
 
-    private static func save(key: String, data: Data, service: String) throws {
+    static func save(key: String, data: Data, service: String) throws {
         let attributes: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
@@ -86,7 +86,7 @@ nonisolated enum KeychainManager {
         }
     }
 
-    private static func load(key: String, service: String) -> Data? {
+    static func load(key: String, service: String) -> Data? {
         var query = makeQuery(key: key, service: service)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -101,7 +101,7 @@ nonisolated enum KeychainManager {
         return result as? Data
     }
 
-    private static func delete(key: String, service: String) {
+    static func delete(key: String, service: String) {
         SecItemDelete(makeQuery(key: key, service: service) as CFDictionary)
     }
 

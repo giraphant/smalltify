@@ -35,6 +35,7 @@ extension FocusedValues {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var allowedTermination = false
+    weak var soloist: SoloistController?
 
     func applicationDidFinishLaunching(_: Notification) {
         _ = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
@@ -43,19 +44,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Holds the quit until the player has shut down: it tells Spotify where playback
-    /// stopped, and its disconnect takes this Mac off the other Connect devices. Sent
-    /// from `applicationWillTerminate`, the report never got out before the process
-    /// ended, so the next launch mirrored the track from wherever Spotify last heard of
-    /// it, often its start.
-    /// Two seconds at most, since a PutState on a dead network waits fifteen.
+    /// Let the locally owned Soloist child close its session and cache before quitting.
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         Task {
-            await SpotifyPlayer.shutdown()
+            await soloist?.stop()
             allowTermination()
         }
         Task {
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .seconds(5))
             allowTermination()
         }
         return .terminateLater
@@ -73,250 +69,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SpotiflyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var windowState = WindowState()
-    /// Sign-in, and with it the signed-in account's store and services, which a closed window
-    /// does not take with it (`LoggedInSession`). None in the unit-test host, where its grant
-    /// would sign the developer in, and a test's revocation could sign them out.
-    @State private var auth: AuthViewModel? = SpotiflyApp.hostsUnitTests ? nil : AuthViewModel()
-    @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
-
-    init() {
-        // Set activation policy to regular to support media keys
-        NSApplication.shared.setActivationPolicy(.regular)
-
-        // Nothing reads the dashboard grant any more; this is where the last copy of it on an
-        // upgraded machine gets thrown away.
-        KeychainManager.purgeDashboardGrant()
-    }
-
-    /// Hosting the unit tests (`TEST_HOST`), the app finds the developer's grant, stored login
-    /// and Connect device id, so its content would sign in and register as the Debug app the
-    /// developer has open. The tests need the app's code, not its window, nor the wake's rebuild
-    /// in `PlaybackViewModel`, which a test that reaches the shared instance would set up.
+    @State private var model: SmalltifyModel? = SpotiflyApp.hostsUnitTests ? nil : SmalltifyModel()
     static let hostsUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     var body: some Scene {
-        WindowGroup {
-            if let auth {
-                mainWindow(auth: auth)
-            }
-        }
-        .windowResizability(windowState.isMiniPlayerMode ? .contentSize : .automatic)
-        .commands {
-            // "Show/Hide Sidebar", ⌃⌘S, in the View menu.
-            SidebarCommands()
-            SpotiflyCommands(sessions: auth?.sessions, windowState: windowState)
-        }
-
-        Settings {
-            PreferencesView()
-                .preferredColorScheme(appearanceMode.colorScheme)
-        }
-    }
-
-    private func mainWindow(auth: AuthViewModel) -> some View {
-        ContentView()
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
-                windowState.exitMiniPlayerMode(window: notification.object as? NSWindow)
-            }
-            .environment(windowState)
-            // Speakers and the play alert offer the grant again, and it is this view model that
-            // runs it.
-            .environment(auth)
-            .environment(PlayerModel.shared)
-            // Here rather than in `LoggedInView`, which reads it itself and so cannot be the one
-            // to inject it. It lives as long as the process, like the player model.
-            .environment(PlaybackViewModel.shared)
-            .preferredColorScheme(appearanceMode.colorScheme)
-            .onChange(of: appearanceMode, initial: true) { _, mode in
-                mode.apply()
-            }
-            // The window that is open takes any `de.rvdh.spotifly://` URL, such as the
-            // sign-in page's link back to the app. Unclaimed, each one opened a second
-            // main window with its own services.
-            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-    }
-}
-
-// MARK: - Menu Commands
-
-struct SpotiflyCommands: Commands {
-    /// Nil in the unit-test host.
-    let sessions: LoggedInSessions?
-    let windowState: WindowState
-    @FocusedValue(\.navigationCoordinator) var navigationCoordinator
-    @FocusedValue(\.homeService) var homeService
-
-    private var playbackViewModel: PlaybackViewModel {
-        PlaybackViewModel.shared
-    }
-
-    var body: some Commands {
-        // Replace default New Window command
-        CommandGroup(replacing: .newItem) {}
-
-        // The View menu, as in Music. Only a signed-in window has a player to shrink to.
-        CommandGroup(after: .sidebar) {
-            Toggle("mini_player.menu", isOn: Binding(
-                get: { windowState.isMiniPlayerMode },
-                set: { _ in windowState.toggleMiniPlayerMode() },
-            ))
-            .keyboardShortcut(AppShortcut.miniPlayer)
-            .disabled(navigationCoordinator == nil && !windowState.isMiniPlayerMode)
-
-            Toggle("inspector.title", isOn: Bindable(windowState).isInspectorPresented)
-                .keyboardShortcut(AppShortcut.inspector)
-                .disabled(navigationCoordinator == nil || windowState.isMiniPlayerMode)
-        }
-
-        // Playback menu
-        CommandMenu("menu.playback") {
-            Button("menu.play_pause") {
-                if playbackViewModel.isPlaying {
-                    playbackViewModel.pause()
-                } else {
-                    playbackViewModel.resume()
-                }
-            }
-            .keyboardShortcut(AppShortcut.playPause)
-
-            Button("menu.next_track") {
-                playbackViewModel.next()
-            }
-            .keyboardShortcut(AppShortcut.nextTrack)
-
-            Button("menu.previous_track") {
-                playbackViewModel.previous()
-            }
-            .keyboardShortcut(AppShortcut.previousTrack)
-
-            Divider()
-
-            VolumeMenuItems(playbackViewModel: playbackViewModel)
-
-            Divider()
-
-            Button("menu.like_track") {
-                Task {
-                    await playbackViewModel.toggleCurrentTrackFavorite()
-                }
-            }
-            .keyboardShortcut(AppShortcut.likeTrack)
-        }
-
-        // Navigation menu
-        CommandMenu("menu.navigate") {
-            NavigationHistoryMenuItems(coordinator: navigationCoordinator)
-
-            Divider()
-
-            Button("menu.favorites") {
-                navigationCoordinator?.selectNavigationItem(.favorites)
-            }
-            .keyboardShortcut(AppShortcut.favorites)
-            .disabled(navigationCoordinator == nil)
-
-            Button("menu.playlists") {
-                navigationCoordinator?.selectNavigationItem(.playlists)
-            }
-            .keyboardShortcut(AppShortcut.playlists)
-            .disabled(navigationCoordinator == nil)
-
-            Button("menu.albums") {
-                navigationCoordinator?.selectNavigationItem(.albums)
-            }
-            .keyboardShortcut(AppShortcut.albums)
-            .disabled(navigationCoordinator == nil)
-
-            Button("menu.artists") {
-                navigationCoordinator?.selectNavigationItem(.artists)
-            }
-            .keyboardShortcut(AppShortcut.artists)
-            .disabled(navigationCoordinator == nil)
-
-            Divider()
-
-            Button("menu.search") {
-                focusToolbarSearchField()
-            }
-            .keyboardShortcut(AppShortcut.search)
-
-            Button("menu.refresh") {
-                guard let homeService else { return }
-                Task {
-                    await homeService.refresh()
-                }
-            }
-            .keyboardShortcut(AppShortcut.refresh)
-            // Greyed where there is nothing to act on, as at the login screen or with Settings
-            // key, rather than enabled and doing nothing.
-            .disabled(homeService == nil)
-        }
-
-        #if DEBUG
-            // Developer tools, in English only: titles passed as `String` are not looked up as
-            // localization keys.
-            CommandMenu("Debug" as String) {
-                Button("Dump Store to Clipboard" as String) {
-                    sessions?.current?.store.debugDumpJSON()
-                }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-
-                // The grant's own token, which is what every request now carries. Paste it
-                // into a curl and you are the app.
-                Button("Copy Access Token" as String) {
-                    Task {
-                        guard let token = try? await KeymasterSession.shared.accessToken() else { return }
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(token, forType: .string)
+        Window("Smalltify", id: "main") {
+            if let model {
+                SmalltifyWorkspace(model: model)
+                    .task {
+                        appDelegate.soloist = model.player
+                        await model.start()
                     }
-                }
             }
-        #endif
-    }
-}
-
-/// ⌘↑ and ⌘↓, ten points of the volume the bar's slider moves, greyed as the slider is while the
-/// device playing controls its own. A view of its own, for the reason the history items below
-/// are: so it follows the device as it changes.
-private struct VolumeMenuItems: View {
-    let playbackViewModel: PlaybackViewModel
-
-    var body: some View {
-        Button("menu.volume_up") {
-            playbackViewModel.stepVolume(by: 0.1)
         }
-        .keyboardShortcut(AppShortcut.volumeUp)
-        .disabled(playbackViewModel.sliderRefused)
-
-        Button("menu.volume_down") {
-            playbackViewModel.stepVolume(by: -0.1)
+        .defaultSize(width: 1050, height: 760)
+        .commands {
+            SidebarCommands()
+            CommandMenu("播放") {
+                Button("播放 / 暂停") {
+                    guard let player = model?.player else { return }
+                    player.control(player.snapshot.status == "playing" ? "pause" : "play")
+                }
+                .keyboardShortcut(.space, modifiers: [])
+                .disabled(model?.player.canControl != true)
+                Button("下一首") { model?.player.control("skip_next") }
+                    .keyboardShortcut(.rightArrow, modifiers: .command)
+                    .disabled(model?.player.canControl != true)
+                Button("上一首") { model?.player.control("skip_prev") }
+                    .keyboardShortcut(.leftArrow, modifiers: .command)
+                    .disabled(model?.player.canControl != true)
+            }
         }
-        .keyboardShortcut(AppShortcut.volumeDown)
-        .disabled(playbackViewModel.sliderRefused)
-    }
-}
-
-/// The history the toolbar's arrows step through, under the shortcuts Safari, Finder and Music
-/// use for it; ⌘← and ⌘→ are Previous and Next track.
-///
-/// A view of its own, so its body follows the coordinator as it moves: the menu's own body is
-/// drawn again only when a focused value changes, and the coordinator stays the same object.
-private struct NavigationHistoryMenuItems: View {
-    let coordinator: NavigationCoordinator?
-
-    var body: some View {
-        Button("nav.back") {
-            coordinator?.navigateBackward()
+        Settings {
+            if let model {
+                VStack(spacing: 0) {
+                    if let message = model.error {
+                        SmalltifyMessage(message: message, isError: true) { model.error = nil }
+                    }
+                    SmalltifySettings(model: model)
+                }
+                .frame(width: 650, height: 720)
+            }
         }
-        .keyboardShortcut(AppShortcut.back)
-        .disabled(coordinator?.canNavigateBackward != true)
-
-        Button("nav.forward") {
-            coordinator?.navigateForward()
-        }
-        .keyboardShortcut(AppShortcut.forward)
-        .disabled(coordinator?.canNavigateForward != true)
     }
 }
 
