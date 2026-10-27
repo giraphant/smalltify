@@ -8,6 +8,7 @@ nonisolated struct SoloistSnapshot: Sendable {
     var uri = ""
     var title = "尚未播放"
     var artist = ""
+    var coverURL: URL?
     var durationMS = 0.0
     var positionMS = 0.0
     var timestampMS = 0.0
@@ -38,6 +39,13 @@ nonisolated struct SoloistSnapshot: Sendable {
             // Missing / empty entity clears the previous track instead of leaving stale UI.
             let entity = event["item"] as? [String: Any] ?? [:]
             let decorations = entity["decorations"] as? [String: Any] ?? [:]
+            let visual = decorations["visual_identity"] as? [String: Any]
+            let covers = visual?["cover"] as? [[String: Any]] ?? []
+            coverURL = covers.compactMap { cover -> URL? in
+                guard let text = cover["url"] as? String, let url = URL(string: text),
+                      url.scheme == "https", url.user == nil, url.password == nil else { return nil }
+                return url
+            }.first
             uri = entity["uri"] as? String ?? ""
             title = (decorations["identity"] as? [String: Any])?["name"] as? String ?? "尚未播放"
             artist = (decorations["creators"] as? [[String: Any]] ?? []).compactMap {

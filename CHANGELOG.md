@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
+- 播放栏显示 Soloist 提供的当前歌曲封面；切歌时清除旧封面，缺少图片时显示占位图。
+- 常用歌单设置：按名称保存 Spotify 歌单链接，在本机持久保留，支持直接播放、同链接改名和删除入口；保存原始 URI，保留个性化歌单的自动更新。Build 12。
 - Smalltify official-service prototype: own-client PKCE Web API search and read-only library, native setup and browsing, Spotify link playback, and Soloist transport/status controls.
 - Local-only pinned Spotify Soloist 1.3.10.19 integration with original vendor signature validation, SHA-256 checks, random loopback WebSocket, process shutdown, and configurable persistent disk cache (2 GB default).
 - Independent Keychain storage and tests for pagination credential boundaries, OAuth refresh/retry/rate limits, official catalog parsing and playback-state events. No vendor binary or real credentials are committed.

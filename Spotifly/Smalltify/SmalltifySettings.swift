@@ -7,6 +7,7 @@ struct SmalltifySettings: View {
 
     var body: some View {
         Form {
+            PlaylistShortcutsSection(shortcuts: model.playlistShortcuts, player: model.player, suggestedLink: model.directLink)
             Section("文库与搜索") {
                 TextField("Client ID", text: $model.clientID)
                     .autocorrectionDisabled()

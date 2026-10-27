@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 @testable import Spotifly
 import Testing
@@ -25,9 +26,24 @@ struct SmalltifyProtocolTests {
     }
 
     @Test func loopbackListenerHonorsAnExplicitPort() async throws {
-        let probe = LoopbackCallbackServer()
-        let port = try await probe.start()
-        await probe.stop()
+        // A synchronous socket close avoids racing NWListener's asynchronous cancellation.
+        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        #expect(descriptor >= 0)
+        guard descriptor >= 0 else { return }
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let allocated = withUnsafeMutablePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
+                bind(descriptor, socketAddress, length) == 0 && getsockname(descriptor, socketAddress, &length) == 0
+            }
+        }
+        let port = UInt16(bigEndian: address.sin_port)
+        close(descriptor)
+        #expect(allocated && port != 0)
+        guard allocated, port != 0 else { return }
         let server = LoopbackCallbackServer()
         do {
             let actual = try await server.start(port: port)
@@ -80,6 +96,14 @@ struct SmalltifyProtocolTests {
         #expect(SmalltifyModel.spotifyURI(from: "https://open.spotify.com.evil.test/track/\(trackID)") == nil)
         #expect(SmalltifyModel.spotifyURI(from: "spotify:artist:\(trackID)") == nil)
         #expect(SmalltifyModel.spotifyURI(from: "spotify:track:../../x") == nil)
+    }
+
+    @Test func coverFollowsCurrentTrackAndRejectsNonHTTPSImages() throws {
+        var state = SoloistSnapshot()
+        _ = try state.apply(Data(#"{"type":"track_changed","item":{"decorations":{"visual_identity":{"cover":[{"url":"file:///tmp/image.png"},{"url":"https://i.scdn.co/image/test","size":"large"}]}}}}"#.utf8))
+        #expect(state.coverURL?.absoluteString == "https://i.scdn.co/image/test")
+        _ = try state.apply(Data(#"{"type":"track_changed","item":{"decorations":{"identity":{"name":"Next track"}}}}"#.utf8))
+        #expect(state.coverURL == nil)
     }
 
     @Test func positionInterpolatesClampsAndFreezesOnPause() throws {

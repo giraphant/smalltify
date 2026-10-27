@@ -4,6 +4,7 @@ import Observation
 
 @MainActor @Observable final class SmalltifyModel {
     let player = SoloistController()
+    let playlistShortcuts = PlaylistShortcuts()
     let api: OfficialWebAPI
     var clientID: String
     var signedIn: Bool

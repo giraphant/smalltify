@@ -11,6 +11,15 @@ struct SmalltifyPlayerBar: View {
                 SmalltifyMessage(message: error, isError: true) { player.error = nil }
             }
             HStack {
+                AsyncImage(url: player.snapshot.coverURL) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    Image(systemName: "music.note")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.quaternary)
+                }
+                .frame(width: 48, height: 48)
+                .accessibilityLabel("当前歌曲封面")
                 VStack(alignment: .leading) {
                     Text(player.snapshot.title).lineLimit(1).bold()
                     Text(player.snapshot.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
