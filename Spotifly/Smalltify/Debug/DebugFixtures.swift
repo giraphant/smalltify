@@ -11,6 +11,8 @@
     /// - `SMALLTIFY_ROUTE` picks the first page: `home`, `liked`, `playlists`, `albums`, `artists`,
     ///   `search:<query>`, `album:<name>`, `playlist:<name>`, `artist:<name>` (names from `FixtureData`).
     /// - `SMALLTIFY_DARK=1` uses the dark appearance; `SMALLTIFY_INSPECTOR=1` opens 正在播放.
+    /// - `SMALLTIFY_WINDOW=<width>x<height>` sizes the main window's content (minimum 900×600; with
+    ///   the inspector open, 900 wide leaves a narrow page).
     /// - `SMALLTIFY_SNAPSHOT=<path.png>` writes every visible window after `SMALLTIFY_SNAPSHOT_DELAY`
     ///   seconds (default 3) and quits: the main window to the path, others beside it.
     /// - `SMALLTIFY_OPEN` is free for pages and panels to read, to open a popover or a window
@@ -80,14 +82,25 @@
             for subview in view.subviews { dump(subview, depth: depth + 1) }
         }
 
+        /// `1280x800` as a size; the main window's minimum, 900×600, still applies.
+        static func windowSize(_ text: String) -> CGSize? {
+            let parts = text.lowercased().split(separator: "x").compactMap { Double($0) }
+            return parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : nil
+        }
+
         /// Writes each visible window as a PNG, then quits.
         @MainActor static func snapshotAndQuit() {
             guard isEnabled, let path = environment["SMALLTIFY_SNAPSHOT"] else { return }
             let delay = Double(environment["SMALLTIFY_SNAPSHOT_DELAY"] ?? "") ?? 3
             // Snapshot runs stay invisible: windows are drawn for the capture, never shown to the user.
+            let size = environment["SMALLTIFY_WINDOW"].flatMap(windowSize)
             Task { @MainActor in
                 while true {
                     for window in NSApp.windows where window.alphaValue > 0 { window.alphaValue = 0 }
+                    if let size, let main = NSApp.windows.first(where: { $0.identifier?.rawValue.contains("main") == true }),
+                       main.contentLayoutRect.size != size {
+                        main.setContentSize(size)
+                    }
                     try? await Task.sleep(for: .milliseconds(20))
                 }
             }
