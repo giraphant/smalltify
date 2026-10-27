@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 喜欢的歌曲: the saved tracks, filterable and sortable, loading more as the list scrolls.
 struct LikedSongsPage: View {
     @Environment(SmalltifyModel.self) private var model
     @State private var filter = ""
@@ -56,6 +57,7 @@ struct LikedSongsPage: View {
     ])
 }
 
+/// How the library pages get and start their loaders, with the debug fixture states in one place.
 @MainActor enum LibraryPageLoading {
     static func loader(_ model: SmalltifyModel, key: String, url: URL) -> PagedLoader {
         #if DEBUG

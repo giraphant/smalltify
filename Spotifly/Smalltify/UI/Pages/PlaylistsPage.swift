@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 歌单: the playlists in the library, the user's own showing their length, others their owner.
 struct PlaylistsPage: View {
     @Environment(SmalltifyModel.self) private var model
 

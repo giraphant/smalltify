@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 专辑: the saved albums, in Spotify's order or sorted by name, artist or year.
 struct AlbumsPage: View {
     @Environment(SmalltifyModel.self) private var model
     @State private var sort = LibraryAlbumSort.recentlyAdded

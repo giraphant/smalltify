@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 歌手: the followed artists, paged by Spotify's cursor rather than an offset.
 struct ArtistsPage: View {
     @Environment(SmalltifyModel.self) private var model
 
