@@ -8,10 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- 窗口较窄时打开「正在播放」侧栏会让 AppKit 布局无限重算并崩溃：侧栏打开时窗口最小宽度提高到 1120pt，首页并排区块改按滚动视图宽度切换，卡片横排不再吸附滚动。
+- 歌单简介去除 HTML 并解码实体；较早的刷新请求不会覆盖较新的页面数据。
 - 修正歌手作品接口每页上限为 10，避免 HTTP 400；显示 API 返回的具体错误，区分加载失败和空列表。Build 14。
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
+- 按 `design_handoff_smalltify/` 设计重做界面：侧边栏（首页、文库四项、常用歌单、连接状态与账号）、带前进后退的导航、工具栏搜索与粘贴链接、页面顶部唯一错误横幅和自动消失的提示。
+- 首页：最近播放（按播放上下文去重）、常听歌曲与歌手（4 周／6 个月／1 年）；缺少新权限时就地提示重新授权。
+- 混合搜索：一次请求取回歌曲、歌手、专辑、歌单，可切换单一类型并按 10 条分页；空结果与失败状态。
+- 文库页：喜欢的歌曲（筛选、可排序列、自动加载更多）、我的歌单、收藏专辑（可按名称／歌手／年份排序）、关注的歌手（游标分页）。
+- 专辑、歌单、歌手详情页：大封面头部、随机播放、收藏专辑与关注歌手（乐观更新、失败回滚）；别人的歌单显示「看不到曲目」并保留整张播放与存到常用歌单。
+- 单行播放栏、正在播放侧栏（含只读的接下来播放）、播放设备弹出框、迷你播放器窗口（⌥⌘M）；单曲／列表循环，⌘↑／⌘↓ 调节音量。
+- 从列表播放会从所点歌曲接着往下播：专辑和歌单经 Spotify Connect 从该曲目开始，喜欢的歌曲按当前显示顺序带上后续最多 100 首；本机通过 Web API 驱动 Soloist 设备，未授权 Connect 时退回单曲并提示一次。
+- 设置窗口分为「连接」「关于」：授权、播放器、配对三步各自显示状态；粘贴链接时识别并预览歌曲、专辑、歌单、播客单集。
+- 调试构建的演示模式（`SMALLTIFY_FIXTURES=1`）：用内置数据驱动界面并自动截图，不读取钥匙串、不连接账号、不启动 Soloist。
 - 恢复播放栏 Spotify Connect 设备选择器，支持查看设备、保留播放状态切换、切回本机，以及目标设备的播放控制和状态显示。新增播放权限需重新授权；旧文库授权继续可用。Build 15。
 - 播放时静默预取当前主歌手的前三页作品及资料；浏览复用短时内存缓存，合并并发请求，翻页失败保留已加载内容，退出账号清空缓存。
 - 歌手作品页：支持歌手搜索、从歌曲或播放栏进入歌手、头像、专辑／单曲／参与作品筛选及分页；保留多位合作歌手和页面返回路径。Build 13。
@@ -22,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Independent Keychain storage and tests for pagination credential boundaries, OAuth refresh/retry/rate limits, official catalog parsing and playback-state events. No vendor binary or real credentials are committed.
 
 ### Changed
+- 授权范围新增收藏写入、关注、常听与最近播放；旧授权会提示重新授权一次。
+- 封面按显示尺寸选取图片并缓存在内存和磁盘，滚动不再重复下载。
 - The app entry now uses the official-service UI; legacy Pathfinder/Keymaster/librespot code remains dormant. Runtime quality is explicitly unverified rather than inferred from Soloist's advertised lossless capability. Build incremented to 10.
 - Smalltify personal fork: isolated bundle identifier and Keychain services, local Developer ID signing, and a source-only Makefile anchored to reviewed upstream commit 6077b51.
 
