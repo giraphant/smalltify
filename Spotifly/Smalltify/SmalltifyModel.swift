@@ -239,9 +239,23 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     }
 
     /// Plays a track; within `context`, playback is meant to carry on through the rest of it.
-    /// TODO(player worker): start the context at this track once Soloist's play command is confirmed.
+    /// Connect starts at this track; a visible list carries on when the context has no offset.
     func play(_ track: CatalogItem, in context: PlaybackContext?) {
-        player.control("play", uri: track.uri)
+        guard ensurePlayerReady() else { return }
+        guard let context else { return player.control("play", uri: track.uri) }
+        Task {
+            do {
+                player.error = nil
+                if try await connect.playInContext(uri: track.uri, context: context) { return }
+                // Soloist has no context offset. Without an authorized, identifiable Connect
+                // device, its single-track command is the only supported starting point.
+                try await player.send("play", uri: track.uri)
+                if !player.contextFallbackNotified {
+                    player.contextFallbackNotified = true
+                    notices.toast(connect.authorized ? "未找到这台 Mac 的 Connect 设备，只播放这一首" : "未授权 Connect，只播放这一首")
+                }
+            } catch { player.error = error.localizedDescription }
+        }
     }
 
     /// Plays `tracks[index]` from a list as shown, so playback carries on through the tracks after it.
@@ -253,10 +267,12 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     }
 
     func enqueue(_ item: CatalogItem) {
+        guard ensurePlayerReady() else { return }
         guard item.kind == "track" || item.kind == "episode" else { return }
         Task {
             do {
                 try await player.send("add_to_queue", uri: item.uri)
+                await connect.refreshQueue()
                 notices.toast("已加入队列")
             } catch { player.error = error.localizedDescription }
         }

@@ -9,6 +9,8 @@ nonisolated struct SoloistSnapshot: Sendable {
     var title = "尚未播放"
     var artist = ""
     var artists: [CatalogArtist] = []
+    var album: CatalogAlbumRef?
+    var releaseYear: String?
     var coverURL: URL?
     var durationMS = 0.0
     var positionMS = 0.0
@@ -17,6 +19,22 @@ nonisolated struct SoloistSnapshot: Sendable {
     var volume = 40.0
     var shuffle = false
     var repeatMode = "off"
+
+    var hasTrack: Bool { !uri.isEmpty }
+    var nextRepeatMode: String {
+        switch repeatMode {
+        case "context": "track"
+        case "track": "off"
+        default: "context"
+        }
+    }
+    var repeatLabel: String {
+        switch repeatMode {
+        case "context": "列表循环"
+        case "track": "单曲循环"
+        default: "关"
+        }
+    }
 
     func position(at date: Date) -> Double {
         let elapsed = status == "playing" && timestampMS > 0 ? max(0, date.timeIntervalSince1970 * 1000 - timestampMS) * speed : 0
@@ -47,6 +65,14 @@ nonisolated struct SoloistSnapshot: Sendable {
                       url.scheme == "https", url.user == nil, url.password == nil else { return nil }
                 return url
             }.first
+            album = nil
+            releaseYear = nil
+            if let parent = (decorations["parent"] as? [String: Any])?["entity"] as? [String: Any],
+               let parentURI = parent["uri"] as? String, parentURI.hasPrefix("spotify:album:"), CatalogItem.validURI(parentURI),
+               let info = parent["decorations"] as? [String: Any],
+               let name = (info["identity"] as? [String: Any])?["name"] as? String {
+                album = CatalogAlbumRef(uri: parentURI, name: name)
+            }
             uri = entity["uri"] as? String ?? ""
             title = (decorations["identity"] as? [String: Any])?["name"] as? String ?? "尚未播放"
             let creators = decorations["creators"] as? [[String: Any]] ?? []

@@ -32,6 +32,15 @@ struct SmalltifyCommands: Commands {
                 player.control("set_shuffle", enabled: !player.displaySnapshot.shuffle)
             }
             .disabled(model?.player.canControl != true)
+            Button("循环") { model?.player.cycleRepeat() }
+                .disabled(model?.player.canControl != true || model?.player.displaySnapshot.hasTrack != true)
+            Divider()
+            Button("增大音量") { model?.player.adjustVolume(by: 10) }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+                .disabled(model?.player.canSetVolume != true)
+            Button("减小音量") { model?.player.adjustVolume(by: -10) }
+                .keyboardShortcut(.downArrow, modifiers: .command)
+                .disabled(model?.player.canSetVolume != true)
             Divider()
             Button("粘贴 Spotify 链接并播放") {
                 guard let text = NSPasteboard.general.string(forType: .string), model?.play(link: text) == true else {

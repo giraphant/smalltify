@@ -22,6 +22,9 @@ nonisolated struct OfficialConnectPlayback: Sendable {
             snapshot.artists = item.artists
             snapshot.coverURL = item.imageURL
             snapshot.durationMS = item.durationMS
+            snapshot.album = item.album
+            let album = itemObject["album"] as? [String: Any]
+            snapshot.releaseYear = (album?["release_date"] as? String).map { String($0.prefix(4)) }
         }
         snapshot.positionMS = max(0, object["progress_ms"] as? Double ?? 0)
         // Spotify's timestamp is the last state change, not the sample time of progress_ms.

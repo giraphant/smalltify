@@ -13,6 +13,7 @@ import Security
     private(set) var starting = false
     private(set) var stopping = false
     var error: String?
+    var contextFallbackNotified = false
     private var process: Process?
     private var receiver: Task<Void, Never>?
     private var socket: URLSessionWebSocketTask?
@@ -166,14 +167,20 @@ import Security
         }
     }
 
-    func send(_ command: String, uri: String? = nil, value: Double? = nil, enabled: Bool? = nil) async throws {
-        let playbackCommands = ["play", "pause", "skip_next", "skip_prev", "seek", "set_volume", "set_shuffle", "add_to_queue"]
+    func send(_ command: String, uri: String? = nil, value: Double? = nil, enabled: Bool? = nil, context: PlaybackContext? = nil, repeatMode: String? = nil) async throws {
+        let playbackCommands = ["play", "pause", "skip_next", "skip_prev", "seek", "set_volume", "set_shuffle", "set_repeat", "add_to_queue"]
         if playbackCommands.contains(command), let connect {
             guard !connect.transferring else { throw SmalltifyError("请等待设备切换完成。") }
             if connect.usesRemote {
-                try await connect.send(command, uri: uri, value: value, enabled: enabled)
+                try await connect.send(command, uri: uri, value: value, enabled: enabled, context: context, repeatMode: repeatMode)
                 return
             }
+        }
+        if command == "set_repeat" {
+            for step in try Self.repeatCommands(repeatMode) {
+                try await send(step.command, enabled: step.enabled)
+            }
+            return
         }
         guard connected, let socket else { throw SmalltifyError("请先启动播放器并完成配对。") }
         var object: [String: Any] = ["type": "command", "command": command]
@@ -192,13 +199,31 @@ import Security
         try await socket.send(.string(text))
     }
 
-    func control(_ command: String, uri: String? = nil, value: Double? = nil, enabled: Bool? = nil) {
+    func control(_ command: String, uri: String? = nil, value: Double? = nil, enabled: Bool? = nil, context: PlaybackContext? = nil, repeatMode: String? = nil) {
         Task {
             do {
                 error = nil
-                try await send(command, uri: uri, value: value, enabled: enabled)
+                try await send(command, uri: uri, value: value, enabled: enabled, context: context, repeatMode: repeatMode)
             } catch { self.error = error.localizedDescription }
         }
+    }
+
+    nonisolated static func repeatCommands(_ mode: String?) throws -> [(command: String, enabled: Bool)] {
+        switch mode {
+        case "off": [("set_repeat_track", false), ("set_repeat_context", false)]
+        case "context": [("set_repeat_track", false), ("set_repeat_context", true)]
+        case "track": [("set_repeat_context", false), ("set_repeat_track", true)]
+        default: throw SmalltifyError("无效的循环模式。")
+        }
+    }
+
+    func cycleRepeat() {
+        control("set_repeat", repeatMode: displaySnapshot.nextRepeatMode)
+    }
+
+    func adjustVolume(by amount: Double) {
+        guard canSetVolume else { return }
+        control("set_volume", value: min(100, max(0, displaySnapshot.volume + amount)))
     }
 
     func stop() async {

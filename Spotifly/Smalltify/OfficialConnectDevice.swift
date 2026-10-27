@@ -18,6 +18,21 @@ nonisolated struct OfficialConnectDevice: Equatable, Sendable {
         }
     }
 
+    var typeLabel: String {
+        switch type.lowercased() {
+        case "computer": "电脑"
+        case "smartphone": "手机"
+        case "tv": "电视"
+        default: "音箱"
+        }
+    }
+
+    var note: String {
+        if restricted { return "受限设备：只能在设备本身上操作" }
+        if !selectable { return "此设备不支持远程控制" }
+        return active ? "正在播放 · \(typeLabel)" : typeLabel
+    }
+
     static func parse(_ object: [String: Any]) -> Self {
         Self(id: object["id"] as? String, name: object["name"] as? String ?? "Spotify 设备",
              type: object["type"] as? String ?? "", active: object["is_active"] as? Bool ?? false,
