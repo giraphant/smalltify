@@ -42,6 +42,9 @@ struct SmalltifySidebar: View {
             AddShortcutSheet()
                 .environment(model)
         }
+        #if DEBUG
+            .task { if DebugFixtures.opens("shortcut") { addingShortcut = true } }
+        #endif
     }
 
     private func row(_ section: SidebarSection) -> some View {

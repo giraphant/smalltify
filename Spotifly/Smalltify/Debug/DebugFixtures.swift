@@ -14,7 +14,9 @@
     /// - `SMALLTIFY_SNAPSHOT=<path.png>` writes every visible window after `SMALLTIFY_SNAPSHOT_DELAY`
     ///   seconds (default 3) and quits: the main window to the path, others beside it.
     /// - `SMALLTIFY_OPEN` is free for pages and panels to read, to open a popover or a window
-    ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it. `signed-out` starts signed out.
+    ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it. `signed-out` starts signed out;
+    ///   `paste`, `shortcut` and `settings` open the paste-link popover, the add-shortcut sheet and
+    ///   the settings window.
     enum DebugFixtures {
         static let environment = ProcessInfo.processInfo.environment
         static var isEnabled: Bool { environment["SMALLTIFY_FIXTURES"] == "1" }
@@ -47,6 +49,8 @@
             model.player.debugPretendConnected()
             if let route = environment["SMALLTIFY_ROUTE"].flatMap(destination) { model.navigator.reset(to: route) }
             model.inspectorPresented = environment["SMALLTIFY_INSPECTOR"] == "1"
+            FixtureData.configurePlayer(model)
+            FixtureData.configureSettings(model)
             if environment["SMALLTIFY_DARK"] == "1" { NSApp.appearance = NSAppearance(named: .darkAqua) }
             return model
         }

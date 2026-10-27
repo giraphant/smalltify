@@ -250,5 +250,13 @@ private extension String {
             running = true
             connected = true
         }
+
+        /// Fixture mode: puts the controller in any lifecycle state, with no Soloist process.
+        func debugSetLifecycle(running: Bool, starting: Bool = false, stopping: Bool = false, connected: Bool) {
+            self.running = running
+            self.starting = starting
+            self.stopping = stopping
+            self.connected = connected
+        }
     }
 #endif

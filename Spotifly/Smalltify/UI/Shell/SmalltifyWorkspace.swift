@@ -6,6 +6,7 @@ struct SmalltifyWorkspace: View {
     @Bindable var model: SmalltifyModel
     @State private var searchText = ""
     @State private var showingPasteLink = false
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +42,12 @@ struct SmalltifyWorkspace: View {
             model.handle(url) ? .handled : .systemAction
         })
         .frame(minWidth: 900, minHeight: 600)
+        #if DEBUG
+            .task {
+                if DebugFixtures.opens("paste") { showingPasteLink = true }
+                if DebugFixtures.opens("settings") { openSettings() }
+            }
+        #endif
     }
 
     @ToolbarContentBuilder

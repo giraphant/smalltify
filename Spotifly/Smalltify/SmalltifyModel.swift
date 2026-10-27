@@ -38,6 +38,8 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     var authorizing = false
     /// Why the last sign-in failed, for the settings page; cleared when the next one starts.
     private(set) var signInError: String?
+    /// Spotify refused the grant: the settings page offers 重新授权 until a sign-in succeeds.
+    private(set) var authExpired = false
     var hasPlayerKey: Bool
     var cacheMB: Int
     /// Signed in with fewer scopes than the current features need.
@@ -124,6 +126,7 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
         let reason = (error as? SmalltifyError)?.reason ?? .other
         switch reason {
         case .authExpired:
+            authExpired = true
             notices.show(.init(message: "登录已过期，文库和设备暂时无法读取。", actions: [
                 .init(title: "重新授权") { [weak self] in self?.signIn() },
             ]))
@@ -315,6 +318,7 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
                 try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens, connectEnabled: true,
                                                          scopeVersion: OfficialWebAPI.scopeVersion))
                 signedIn = true
+                authExpired = false
                 needsScopeUpgrade = false
                 connect.setAuthorized(true)
                 clientID = id
@@ -349,6 +353,7 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
                 try await api.replaceGrant(nil)
                 await artistCatalog.clear()
                 signedIn = false
+                authExpired = false
                 profile = nil
                 navigator.reset(to: .home)
                 notices.toast("已退出 Spotify 文库")
@@ -414,3 +419,12 @@ nonisolated enum AppLink {
         return parts.url
     }
 }
+
+#if DEBUG
+    extension SmalltifyModel {
+        /// Fixture mode: shows a failed sign-in without attempting one.
+        func debugSetSignInError(_ message: String?) {
+            signInError = message
+        }
+    }
+#endif
