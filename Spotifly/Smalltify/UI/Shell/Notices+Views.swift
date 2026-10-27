@@ -52,8 +52,13 @@ struct ToastView: View {
     var body: some View {
         ZStack {
             if let toast = notices.toast {
-                Label(toast, systemImage: "checkmark")
-                    .font(.callout)
+                Label {
+                    Text(toast)
+                } icon: {
+                    Image(systemName: notices.toastIsError ? "exclamationmark.triangle.fill" : "checkmark")
+                        .foregroundStyle(notices.toastIsError ? Color.red : Color.accentColor)
+                }
+                .font(.callout)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)

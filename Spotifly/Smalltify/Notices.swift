@@ -20,6 +20,8 @@ import Observation
 
     private(set) var banner: Banner?
     private(set) var toast: String?
+    /// Whether the toast reports a failure, such as a save that was rolled back.
+    private(set) var toastIsError = false
     private var toastTask: Task<Void, Never>?
     static let toastDuration = Duration.milliseconds(2500)
 
@@ -32,9 +34,11 @@ import Observation
         banner = nil
     }
 
-    /// Shows a short confirmation such as「已加入队列」, replacing the one showing.
-    func toast(_ message: String) {
+    /// Shows a short confirmation such as「已加入队列」, or a failure that needs no banner,
+    /// replacing the one showing.
+    func toast(_ message: String, isError: Bool = false) {
         toast = message
+        toastIsError = isError
         toastTask?.cancel()
         toastTask = Task {
             try? await Task.sleep(for: Self.toastDuration)
