@@ -24,7 +24,7 @@ private struct DetailHeroLayout: Layout {
         guard subviews.count == 2 else { return .zero }
         let width = proposal.width ?? 300
         let art = subviews[0].sizeThatFits(.unspecified)
-        let stacked = width < 520
+        let stacked = width < 700
         let text = subviews[1].sizeThatFits(.init(width: stacked ? width : max(0, width - art.width - 22), height: nil))
         return CGSize(width: width, height: stacked ? art.height + 16 + text.height : max(art.height, text.height))
     }
@@ -32,7 +32,7 @@ private struct DetailHeroLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 2 else { return }
         let art = subviews[0].sizeThatFits(.unspecified)
-        let stacked = bounds.width < 520
+        let stacked = bounds.width < 700
         let textProposal = ProposedViewSize(width: stacked ? bounds.width : max(0, bounds.width - art.width - 22), height: nil)
         let text = subviews[1].sizeThatFits(textProposal)
         subviews[0].place(at: CGPoint(x: bounds.minX, y: stacked ? bounds.minY : bounds.maxY - art.height),
