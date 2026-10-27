@@ -115,6 +115,18 @@ import Testing
         #expect(model.connectionStatus.text == "播放器未设置")
     }
 
+    @Test func playingFromAListPassesTheTracksAfterIt() {
+        let tracks = (0 ..< 130).map { index in
+            CatalogItem(uri: "spotify:track:" + String(format: "%022d", index), name: "\(index)",
+                        subtitle: "", kind: "track", durationMS: 0, imageURL: nil)
+        } + [CatalogItem(uri: "spotify:local:x", name: "local", subtitle: "", kind: "track", durationMS: 0, imageURL: nil)]
+        let upcoming = PlaybackContext.upcoming(tracks, from: 5)
+        #expect(upcoming.count == 100)
+        #expect(upcoming.first == tracks[5].uri)
+        #expect(PlaybackContext.upcoming(tracks, from: 129) == [tracks[129].uri])
+        #expect(PlaybackContext.upcoming(tracks, from: 500).isEmpty)
+    }
+
     @Test func scopeUpgradeIsAskedOfGrantsFromBeforeTheNewFeatures() {
         let tokens = KeymasterTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, username: "")
         #expect(OfficialGrant(clientID: "c", tokens: tokens).needsScopeUpgrade)

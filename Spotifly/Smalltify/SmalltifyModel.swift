@@ -13,6 +13,16 @@ nonisolated struct AccountProfile: Sendable, Equatable {
 nonisolated struct PlaybackContext: Hashable, Sendable {
     /// An album, a playlist, or the user's collection (`spotify:user:<id>:collection`).
     let uri: String
+    /// The track played and the ones after it in the list as shown, at most 100. Spotify can
+    /// start an album or playlist at a track, but not the collection; there playback follows
+    /// this list instead. Filled by `play(_:startingAt:in:)`.
+    var upcoming: [String] = []
+
+    /// The playable uris from `index` on, at most 100: what Spotify accepts in one play request.
+    static func upcoming(_ tracks: [CatalogItem], from index: Int) -> [String] {
+        guard tracks.indices.contains(index) else { return [] }
+        return Array(tracks[index...].lazy.map(\.uri).filter { CatalogItem.validURI($0) }.prefix(100))
+    }
 }
 
 /// The connection as the sidebar's status capsule and the player bar's device chip show it.
@@ -213,6 +223,14 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     /// TODO(player worker): start the context at this track once Soloist's play command is confirmed.
     func play(_ track: CatalogItem, in context: PlaybackContext?) {
         player.control("play", uri: track.uri)
+    }
+
+    /// Plays `tracks[index]` from a list as shown, so playback carries on through the tracks after it.
+    func play(_ tracks: [CatalogItem], startingAt index: Int, in context: PlaybackContext?) {
+        guard tracks.indices.contains(index) else { return }
+        var context = context
+        context?.upcoming = PlaybackContext.upcoming(tracks, from: index)
+        play(tracks[index], in: context)
     }
 
     func enqueue(_ item: CatalogItem) {

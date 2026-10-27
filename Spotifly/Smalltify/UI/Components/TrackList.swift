@@ -82,7 +82,7 @@ struct TrackList<Header: View>: View {
             ForEach(rows) { row in
                 TrackRowView(row: row, columns: columns, isPlaying: model.player.displaySnapshot.uri == row.item.uri,
                              albumArtists: albumArtists) {
-                    model.play(row.item, in: context)
+                    play(row.id)
                 }
                 .onAppear { if row.id == tracks.count - 1 { loader?.loadMore() } }
             }
@@ -112,13 +112,18 @@ struct TrackList<Header: View>: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: TrackListRow.ID.self) { ids in
             if let id = ids.first, tracks.indices.contains(id) {
-                TrackMenu(track: tracks[id], context: context)
+                TrackMenu(track: tracks[id], context: context) { play(id) }
             }
         } primaryAction: { ids in
-            if let id = ids.first, tracks.indices.contains(id) {
-                model.play(tracks[id], in: context)
-            }
+            if let id = ids.first { play(id) }
         }
+    }
+
+    /// Plays a row, with the rows after it as shown (sorted and filtered) as what follows.
+    private func play(_ id: TrackListRow.ID) {
+        let shown = rows
+        guard let index = shown.firstIndex(where: { $0.id == id }) else { return }
+        model.play(shown.map(\.item), startingAt: index, in: context)
     }
 
     private var rows: [TrackListRow] {
@@ -284,10 +289,12 @@ struct TrackHeaderRow: View {
 struct TrackMenu: View {
     let track: CatalogItem
     var context: PlaybackContext?
+    /// Plays from a list, so what follows continues; without it, 播放 plays the track in `context`.
+    var play: (() -> Void)?
     @Environment(SmalltifyModel.self) private var model
 
     var body: some View {
-        Button("播放") { model.play(track, in: context) }
+        Button("播放") { if let play { play() } else { model.play(track, in: context) } }
         Button("加入队列") { model.enqueue(track) }
             .disabled(track.kind != "track" && track.kind != "episode")
         Divider()
