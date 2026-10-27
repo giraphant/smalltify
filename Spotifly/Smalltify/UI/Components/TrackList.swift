@@ -47,13 +47,21 @@ struct TrackList<Header: View>: View {
     var filter = ""
     /// Makes the column titles sort the list; without it they are plain labels.
     var sort: Binding<TrackSort?>?
+    /// The order the list already has when `sort` is nil, such as liked songs' newest first:
+    /// shown on its column title, never applied, and returned to by the last click on it.
+    var defaultSort: TrackSort?
     var loader: PagedLoader?
+    /// The loader's page size and its button title, for search's "加载更多 10 条".
+    var pageSize = 50
+    var moreTitle = "加载更多"
     /// The "# 歌名 … 时长" row above the tracks; compact lists such as search's leave it out.
     var showsColumnTitles = true
     /// The album's own artists, which `.artistsUnderTitle` leaves out from under each title.
     var albumArtists: [CatalogArtist] = []
     /// For "没有匹配「…」的歌曲" and empty pages.
     var emptyMessage = "没有歌曲"
+    /// A line after the last row that scrolls with it, such as an album's "2024 · 10 首，39 分钟".
+    var footerText: String?
     @ViewBuilder var header: () -> Header
 
     @Environment(SmalltifyModel.self) private var model
@@ -66,7 +74,7 @@ struct TrackList<Header: View>: View {
                 .listRowBackground(Color.clear)
                 .selectionDisabled()
             if showsColumnTitles {
-                TrackHeaderRow(columns: columns, sort: sort)
+                TrackHeaderRow(columns: columns, sort: sort, defaultSort: defaultSort)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .selectionDisabled()
@@ -86,7 +94,16 @@ struct TrackList<Header: View>: View {
                     .selectionDisabled()
             }
             if let loader {
-                LoaderFooter(loader: loader, unit: "首")
+                LoaderFooter(loader: loader, unit: "首", pageSize: pageSize, moreTitle: moreTitle)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .selectionDisabled()
+            }
+            if let footerText {
+                Text(footerText)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .selectionDisabled()
@@ -136,10 +153,14 @@ struct TrackList<Header: View>: View {
 
 extension TrackList where Header == EmptyView {
     init(tracks: [CatalogItem], columns: TrackColumns = .library, context: PlaybackContext? = nil,
-         filter: String = "", sort: Binding<TrackSort?>? = nil, loader: PagedLoader? = nil,
-         albumArtists: [CatalogArtist] = [], emptyMessage: String = "没有歌曲") {
+         filter: String = "", sort: Binding<TrackSort?>? = nil, defaultSort: TrackSort? = nil,
+         loader: PagedLoader? = nil, pageSize: Int = 50, moreTitle: String = "加载更多",
+         showsColumnTitles: Bool = true, albumArtists: [CatalogArtist] = [],
+         emptyMessage: String = "没有歌曲", footerText: String? = nil) {
         self.init(tracks: tracks, columns: columns, context: context, filter: filter, sort: sort,
-                  loader: loader, albumArtists: albumArtists, emptyMessage: emptyMessage) { EmptyView() }
+                  defaultSort: defaultSort, loader: loader, pageSize: pageSize, moreTitle: moreTitle,
+                  showsColumnTitles: showsColumnTitles,
+                  albumArtists: albumArtists, emptyMessage: emptyMessage, footerText: footerText) { EmptyView() }
     }
 }
 
@@ -210,10 +231,12 @@ struct TrackRowView: View {
     }
 }
 
-/// The column titles; with a sort binding, clicking one sorts by it, a second click reverses.
+/// The column titles; with a sort binding, clicking one sorts by it, a second click reverses,
+/// and a click that would land on `defaultSort` returns to the list's own order.
 struct TrackHeaderRow: View {
     let columns: TrackColumns
     let sort: Binding<TrackSort?>?
+    var defaultSort: TrackSort?
 
     var body: some View {
         ColumnsLayout {
@@ -233,14 +256,14 @@ struct TrackHeaderRow: View {
     @ViewBuilder
     private func title(_ text: String, _ key: TrackSortKey) -> some View {
         if let sort {
-            let current = sort.wrappedValue?.key == key ? sort.wrappedValue : nil
+            let shown = sort.wrappedValue ?? defaultSort
+            let current = shown?.key == key ? shown : nil
             Button {
-                // Ascending, then descending, then Spotify's own order again.
-                switch current?.ascending {
-                case nil: sort.wrappedValue = TrackSort(key: key, ascending: key != .added)
-                case (key != .added)?: sort.wrappedValue = TrackSort(key: key, ascending: key == .added)
-                default: sort.wrappedValue = nil
-                }
+                // A new column starts in its natural direction (dates newest first); the same
+                // column flips; and whatever matches the list's own order clears the sort.
+                let next = current.map { TrackSort(key: key, ascending: !$0.ascending) }
+                    ?? TrackSort(key: key, ascending: key != .added)
+                sort.wrappedValue = next == defaultSort ? nil : next
             } label: {
                 HStack(spacing: 3) {
                     Text(text).fontWeight(current == nil ? .regular : .semibold)

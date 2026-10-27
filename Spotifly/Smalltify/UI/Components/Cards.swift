@@ -18,7 +18,8 @@ struct CatalogCard: View {
                     Text(item.name)
                         .fontWeight(.semibold)
                         .lineLimit(1)
-                    if item.kind != "artist" {
+                    // Artists show only an explicit line, such as the home page's 歌手.
+                    if item.kind != "artist" || detail != nil {
                         Text(detail ?? item.subtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)

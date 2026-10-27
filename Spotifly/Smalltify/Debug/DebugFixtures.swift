@@ -14,7 +14,7 @@
     /// - `SMALLTIFY_SNAPSHOT=<path.png>` writes every visible window after `SMALLTIFY_SNAPSHOT_DELAY`
     ///   seconds (default 3) and quits: the main window to the path, others beside it.
     /// - `SMALLTIFY_OPEN` is free for pages and panels to read, to open a popover or a window
-    ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it.
+    ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it. `signed-out` starts signed out.
     enum DebugFixtures {
         static let environment = ProcessInfo.processInfo.environment
         static var isEnabled: Bool { environment["SMALLTIFY_FIXTURES"] == "1" }
@@ -40,7 +40,8 @@
             let model = SmalltifyModel(restoreCredentials: false, api: api, shortcuts: shortcuts)
             model.isFixture = true
             model.connect.setAuthorized(true)
-            model.signedIn = true
+            // SMALLTIFY_OPEN=signed-out shows the pages as before authorization.
+            model.signedIn = !opens("signed-out")
             model.hasPlayerKey = true
             model.player.snapshot = FixtureData.nowPlaying
             model.player.debugPretendConnected()

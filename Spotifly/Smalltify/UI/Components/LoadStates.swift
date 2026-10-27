@@ -86,6 +86,8 @@ struct LoaderFooter: View {
     /// "首" for tracks, "个" for albums and playlists.
     var unit = "个"
     var pageSize = 50
+    /// Search pages say how many: "加载更多 10 条".
+    var moreTitle = "加载更多"
 
     var body: some View {
         HStack {
@@ -98,7 +100,7 @@ struct LoaderFooter: View {
                 Text(error).foregroundStyle(.secondary).lineLimit(2)
                 Button("重试") { loader.loadMore() }
             } else if loader.next != nil {
-                Button("加载更多") { loader.loadMore() }
+                Button(moreTitle) { loader.loadMore() }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
             }
