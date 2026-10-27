@@ -12,9 +12,15 @@ struct PlayerBar: View {
 }
 
 /// The inspector's 正在播放 panel. Placeholder until W4 builds it with the queue.
+///
+/// Not a ContentUnavailableView: its wrapping text, sized against the inspector column, looped
+/// AppKit's constraint passes until the window threw.
 struct NowPlayingPanel: View {
     var body: some View {
-        ContentUnavailableView("正在播放", systemImage: "music.note", description: Text("W4：大封面、歌名、歌手、专辑，接下来播放。"))
+        VStack {
+            Text("正在播放").font(.headline)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -96,13 +96,15 @@
             guard isEnabled, let path = environment["SMALLTIFY_SNAPSHOT"] else { return }
             let delay = Double(environment["SMALLTIFY_SNAPSHOT_DELAY"] ?? "") ?? 3
             // Snapshot runs stay invisible: windows are drawn for the capture, never shown to the user.
-            let size = environment["SMALLTIFY_WINDOW"].flatMap(windowSize)
+            var size = environment["SMALLTIFY_WINDOW"].flatMap(windowSize)
             Task { @MainActor in
                 while true {
                     for window in NSApp.windows where window.alphaValue > 0 { window.alphaValue = 0 }
-                    if let size, let main = NSApp.windows.first(where: { $0.identifier?.rawValue.contains("main") == true }),
-                       main.contentLayoutRect.size != size {
-                        main.setContentSize(size)
+                    // Once only: the window may not take the exact size (its minimum, the inspector),
+                    // and resizing it again on every pass loops AppKit's constraint updates.
+                    if let requested = size, let main = NSApp.windows.first(where: { $0.identifier?.rawValue.contains("main") == true }) {
+                        main.setContentSize(requested)
+                        size = nil
                     }
                     try? await Task.sleep(for: .milliseconds(20))
                 }
