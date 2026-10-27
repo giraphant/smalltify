@@ -41,11 +41,18 @@ struct SmalltifyWorkspace: View {
         .environment(\.openURL, OpenURLAction { url in
             model.handle(url) ? .handled : .systemAction
         })
-        .frame(minWidth: 900, minHeight: 600)
+        // The inspector takes its column from the page. Below about 560pt the page's toolbar and
+        // content could not settle, and AppKit threw after too many constraint passes, so the
+        // window grows instead while 正在播放 is open.
+        .frame(minWidth: model.inspectorPresented ? 1120 : 900, minHeight: 600)
         #if DEBUG
             .task {
                 if DebugFixtures.opens("paste") { showingPasteLink = true }
                 if DebugFixtures.opens("settings") { openSettings() }
+                if DebugFixtures.opens("inspector-later") {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    model.inspectorPresented = true
+                }
             }
         #endif
     }

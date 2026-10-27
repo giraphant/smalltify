@@ -89,9 +89,14 @@ actor DiscoverRecentCatalog {
     }
 }
 
+/// 首页: what was played recently, and the most played tracks and artists over a time range.
 struct StartPage: View {
     @Environment(SmalltifyModel.self) private var model
     @State private var range = DiscoverTimeRange.short
+    /// Whether 歌曲 and 歌手 fit side by side. Measured on the scroll view, whose width its parent
+    /// sets: a ViewThatFits inside it flipped as the scroller came and went, until AppKit's
+    /// constraint passes overflowed with the inspector open.
+    @State private var wide = true
 
     var body: some View {
         Group {
@@ -112,13 +117,14 @@ struct StartPage: View {
                                 .labelsHidden()
                                 .frame(width: 220)
                             }
-                            ViewThatFits(in: .horizontal) {
+                            if wide {
                                 HStack(alignment: .top, spacing: 28) {
                                     DiscoverTopSection(range: range, type: "tracks")
-                                        .frame(minWidth: 340, maxWidth: .infinity, alignment: .leading)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     DiscoverTopSection(range: range, type: "artists")
                                         .frame(width: 360, alignment: .leading)
                                 }
+                            } else {
                                 VStack(alignment: .leading, spacing: 24) {
                                     DiscoverTopSection(range: range, type: "tracks")
                                     DiscoverTopSection(range: range, type: "artists")
@@ -128,6 +134,7 @@ struct StartPage: View {
                     }
                     .padding(24)
                 }
+                .onGeometryChange(for: Bool.self) { $0.size.width >= 780 } action: { wide = $0 }
             }
         }
         .navigationTitle("首页")

@@ -80,10 +80,8 @@ struct CatalogShelf: View {
                     CatalogCard(item: item, size: size, detail: detail?(item))
                 }
             }
-            .scrollTargetLayout()
         }
         .scrollIndicators(.never)
-        .scrollTargetBehavior(.viewAligned)
     }
 }
 

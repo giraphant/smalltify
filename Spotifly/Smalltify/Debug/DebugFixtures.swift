@@ -18,7 +18,7 @@
     /// - `SMALLTIFY_OPEN` is free for pages and panels to read, to open a popover or a window
     ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it. `signed-out` starts signed out;
     ///   `paste`, `shortcut` and `settings` open the paste-link popover, the add-shortcut sheet and
-    ///   the settings window.
+    ///   the settings window; `inspector-later` opens 正在播放 after launch, as a click would.
     enum DebugFixtures {
         static let environment = ProcessInfo.processInfo.environment
         static var isEnabled: Bool { environment["SMALLTIFY_FIXTURES"] == "1" }
@@ -32,6 +32,12 @@
             // Snapshot runs launch over and over while a page is checked: keep them out of the
             // Dock and the app switcher, so they do not catch the user's eye every few seconds.
             if environment["SMALLTIFY_SNAPSHOT"] != nil { NSApplication.shared.setActivationPolicy(.accessory) }
+            // Every worktree's debug build shares one defaults domain: start each run from the
+            // default frames, not whatever size the last run, maybe another worktree's, saved.
+            for key in UserDefaults.standard.dictionaryRepresentation().keys
+                where key.hasPrefix("NSWindow Frame") || key.hasPrefix("NSSplitView Subview Frames") {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
             URLProtocol.registerClass(FixtureURLProtocol.self)
             let config = URLSessionConfiguration.ephemeral
             config.protocolClasses = [FixtureURLProtocol.self]
