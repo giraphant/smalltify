@@ -1,36 +1,42 @@
 import SwiftUI
 
-/// The bar across the bottom of the window. Placeholder: the previous bar until W4 builds the
-/// design's single-row bar.
 struct PlayerBar: View {
     @Environment(SmalltifyModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+    @State private var width: CGFloat = 1000
 
     var body: some View {
-        SmalltifyPlayerBar(player: model.player, authorizeConnect: model.signIn)
-            .background(.bar)
-    }
-}
-
-/// The inspector's 正在播放 panel. Placeholder until W4 builds it with the queue.
-///
-/// Not a ContentUnavailableView: its wrapping text, sized against the inspector column, looped
-/// AppKit's constraint passes until the window threw.
-struct NowPlayingPanel: View {
-    var body: some View {
-        VStack {
-            Text("正在播放").font(.headline)
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Button { model.inspectorPresented.toggle() } label: {
+                    CoverArt(url: model.player.displaySnapshot.coverURL, size: 40)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("正在播放与接下来播放")
+                PlayerTrackTitle(snapshot: model.player.displaySnapshot)
+            }
+            .frame(minWidth: 100, idealWidth: 210, maxWidth: 250, alignment: .leading)
+            PlaybackButtons(player: model.player)
+            PlaybackProgress(player: model.player, showsTimes: width >= 640)
+                .frame(minWidth: 50, maxWidth: .infinity)
+            DeviceChip()
+            Button("正在播放与接下来播放", systemImage: "list.bullet") { model.inspectorPresented.toggle() }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .padding(6)
+                .background(model.inspectorPresented ? Color.primary.opacity(0.08) : .clear, in: .circle)
+            if width >= 680 {
+                PlaybackVolume(player: model.player)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// The mini player window. Placeholder until W4 builds it.
-struct MiniPlayerWindow: View {
-    static let id = "mini-player"
-    let model: SmalltifyModel
-
-    var body: some View {
-        ContentUnavailableView("迷你播放器", systemImage: "music.note", description: Text("W4"))
-            .frame(width: 360, height: 160)
+        .padding(.horizontal, 16)
+        .frame(height: 64)
+        .background(.bar)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .task {
+            #if DEBUG
+                if DebugFixtures.opens("mini") { openWindow(id: MiniPlayerWindow.id) }
+            #endif
+        }
     }
 }
