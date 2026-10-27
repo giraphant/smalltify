@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Smalltify personal fork: isolated bundle identifier and Keychain services, local Developer ID signing, and a source-only Makefile anchored to reviewed upstream commit 6077b51.
+
 ## [1.4.0] - 2026-10-24
 
 ### Changed

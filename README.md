@@ -1,3 +1,5 @@
+> **Smalltify：个人源码构建 fork。** 本地构建、版本基线与安全边界见 [SMALLTIFY.md](SMALLTIFY.md)。下文保留上游说明，其中下载及 Homebrew 安装链接属于上游。
+
 # Spotifly
 
 A lightweight Spotify player for macOS.

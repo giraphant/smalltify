@@ -7,11 +7,13 @@
 	<key>CFBundleExecutable</key>
 	<string>Spotifly</string>
 	<key>CFBundleIdentifier</key>
-	<string>rvdh.Spotifly</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Spotifly</string>
+	<string>Smalltify</string>
+	<key>CFBundleDisplayName</key>
+	<string>Smalltify</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -20,10 +22,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>de.rvdh.spotifly</string>
+			<string>io.github.giraphant.smalltify</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>de.rvdh.spotifly</string>
+				<string>io.github.giraphant.smalltify</string>
 			</array>
 		</dict>
 	</array>
