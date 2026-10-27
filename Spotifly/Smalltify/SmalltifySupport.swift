@@ -1,8 +1,22 @@
 import Foundation
 
 nonisolated struct SmalltifyError: LocalizedError {
+    /// What the interface can offer besides the message: a reauthorization, a wait.
+    enum Reason: Sendable, Equatable {
+        case other
+        case signedOut
+        case authExpired
+        case forbidden
+        case rateLimited(seconds: Int)
+    }
+
     let message: String
-    init(_ message: String) { self.message = message }
+    var reason = Reason.other
+    init(_ message: String, reason: Reason = .other) {
+        self.message = message
+        self.reason = reason
+    }
+
     var errorDescription: String? { message }
 }
 

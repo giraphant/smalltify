@@ -2,55 +2,70 @@ import AppKit
 import Foundation
 import Observation
 
+/// The signed-in account as `/me` describes it, for the sidebar's footer.
+nonisolated struct AccountProfile: Sendable, Equatable {
+    let id: String
+    let displayName: String
+    let imageURL: URL?
+}
+
+/// What a track was played from, so playback can carry on through the rest of it.
+nonisolated struct PlaybackContext: Hashable, Sendable {
+    /// An album, a playlist, or the user's collection (`spotify:user:<id>:collection`).
+    let uri: String
+}
+
+/// The connection as the sidebar's status capsule and the player bar's device chip show it.
+nonisolated struct ConnectionStatus: Equatable, Sendable {
+    enum Tone: Sendable { case ok, busy, warn, error }
+    let text: String
+    let tone: Tone
+}
+
+/// The app's state for as long as it runs: the account, the player, and the window's navigation.
+/// Pages load their own data through `pages`; this model holds what every page shares.
 @MainActor @Observable final class SmalltifyModel {
     let player = SoloistController()
-    let playlistShortcuts = PlaylistShortcuts()
+    let playlistShortcuts: PlaylistShortcuts
     let api: OfficialWebAPI
     let artistCatalog: ArtistCatalogLoader
     let connect: SpotifyConnectController
+    let navigator: Navigator
+    let notices = Notices()
+    @ObservationIgnored let pages = PageStore()
     var clientID: String
     var signedIn: Bool
     var authorizing = false
     var hasPlayerKey: Bool
     var cacheMB: Int
-    var error: String?
-    var catalogError: String?
-    var notice: String?
-    var items: [CatalogItem] = []
-    var nextPage: URL?
-    var title = "喜欢的歌曲"
-    var loading = false
-    var selected = "liked"
-    var query = ""
-    var searchType = "track"
-    var directLink = ""
-    var collection: CatalogItem?
-    var artist: CatalogArtist?
-    var artistGroup = "album,single"
-    private(set) var history: [CatalogDestination] = []
+    /// Signed in with fewer scopes than the current features need.
+    var needsScopeUpgrade: Bool
+    private(set) var profile: AccountProfile?
+    var inspectorPresented = false
+    /// Debug fixture mode: never starts Soloist, never reads or writes the Keychain, never
+    /// opens a real sign-in. Set only by `DebugFixtures`.
+    @ObservationIgnored var isFixture = false
     private var playbackObservation: Task<Void, Never>?
     private var prefetchTask: Task<Void, Never>?
     private var prefetchArtistURI: String?
     private var started = false
     private var authTask: Task<Void, Never>?
-    private var loadTask: Task<Void, Never>?
-    private var loadGeneration = UUID()
-    private var loadedURL: URL?
-    private var loadedSearchType: String?
-    private var loadedArtistID: String?
 
-    init(restoreCredentials: Bool = true, api suppliedAPI: OfficialWebAPI? = nil) {
+    init(restoreCredentials: Bool = true, api suppliedAPI: OfficialWebAPI? = nil,
+         shortcuts: PlaylistShortcuts = PlaylistShortcuts()) {
         let grant = restoreCredentials ? OfficialGrant.load() : nil
         let api = suppliedAPI ?? OfficialWebAPI(grant: grant)
         self.api = api
+        playlistShortcuts = shortcuts
         artistCatalog = ArtistCatalogLoader(api: api)
         connect = SpotifyConnectController(api: api, authorized: grant?.connectEnabled == true)
         signedIn = grant != nil
+        needsScopeUpgrade = grant?.needsScopeUpgrade == true
         clientID = grant?.clientID ?? UserDefaults.standard.string(forKey: "smalltify.clientID") ?? ""
         hasPlayerKey = restoreCredentials && SmalltifySecrets.load("soloist-key") != nil
         let savedCache = UserDefaults.standard.integer(forKey: "smalltify.cacheMB")
-        cacheMB = savedCache >= 100 ? min(102400, savedCache) : 2048
-        if grant == nil && !hasPlayerKey { selected = "settings" }
+        cacheMB = savedCache >= 100 ? min(102_400, savedCache) : 2048
+        navigator = Navigator(start: .home)
         player.connect = connect
         connect.local = player
     }
@@ -60,13 +75,180 @@ import Observation
         started = true
         observePlaybackForPrefetch()
         connect.start()
-        if signedIn { navigate(selected) }
-        if hasPlayerKey { await player.start(cacheMB: cacheMB) }
+        if signedIn {
+            loadProfile()
+            if needsScopeUpgrade { offerScopeUpgrade() }
+        }
+        if hasPlayerKey, !isFixture { await player.start(cacheMB: cacheMB) }
     }
 
     isolated deinit {
         playbackObservation?.cancel()
         prefetchTask?.cancel()
+    }
+
+    // MARK: - Status
+
+    var connectionStatus: ConnectionStatus {
+        if !signedIn { return ConnectionStatus(text: "未连接 Spotify", tone: .warn) }
+        if !hasPlayerKey { return ConnectionStatus(text: "播放器未设置", tone: .warn) }
+        if player.starting || (player.running && !player.connected) {
+            return ConnectionStatus(text: "播放器启动中…", tone: .busy)
+        }
+        if !player.running {
+            return ConnectionStatus(text: player.error == nil ? "播放器已停止" : "播放器出错", tone: player.error == nil ? .warn : .error)
+        }
+        if !player.snapshot.loggedIn { return ConnectionStatus(text: "等待配对", tone: .warn) }
+        if connect.transferring { return ConnectionStatus(text: "正在切换设备…", tone: .busy) }
+        if connect.usesRemote, let device = connect.playback?.device {
+            return ConnectionStatus(text: "远程 · \(device.name)", tone: .busy)
+        }
+        return ConnectionStatus(text: "播放器就绪 · 这台 Mac", tone: .ok)
+    }
+
+    /// The device playback is on, as the player bar's device chip names it.
+    var deviceLabel: String {
+        if connect.usesRemote, let device = connect.playback?.device { return device.name }
+        return "这台 Mac"
+    }
+
+    var isRemote: Bool { connect.usesRemote }
+
+    // MARK: - Errors
+
+    /// Shows a failure in the banner, with the action that fixes it where there is one.
+    func report(_ error: Error) {
+        guard !(error is CancellationError) else { return }
+        let reason = (error as? SmalltifyError)?.reason ?? .other
+        switch reason {
+        case .authExpired:
+            notices.show(.init(message: "登录已过期，文库和设备暂时无法读取。", actions: [
+                .init(title: "重新授权") { [weak self] in self?.signIn() },
+            ]))
+        case .signedOut:
+            break // Pages show their own "连接你的 Spotify 账号" state.
+        case let .rateLimited(seconds):
+            notices.show(.init(message: "请求太频繁，Spotify 暂时限流。约 \(seconds) 秒后再试。", tone: .warning))
+        case .forbidden, .other:
+            break // Pages show load failures in place; the banner is for what blocks the whole window.
+        }
+    }
+
+    private func offerScopeUpgrade() {
+        notices.show(.init(message: "首页、关注和收藏需要新的权限，请重新授权一次。", tone: .warning, actions: [
+            .init(title: "重新授权") { [weak self] in self?.signIn() },
+        ]))
+    }
+
+    // MARK: - Navigation and pages
+
+    func refreshCurrentPage() {
+        pages.refresh(route: navigator.current.key)
+    }
+
+    /// A paged list for a page, stored under `key` and loaded through this model's API.
+    func pagedLoader(_ key: String, url: URL, searchType: String? = nil) -> PagedLoader {
+        pages.loader(key) {
+            PagedLoader(api: api, url: url, searchType: searchType) { [weak self] in self?.report($0) }
+        }
+    }
+
+    /// An artist's releases of one group (`album,single`, `album`, `single`, `appears_on`), through
+    /// the catalog cache that playback prefetches into, so an artist playing opens instantly.
+    func artistAlbumsLoader(_ artist: CatalogArtist, group: String) throws -> PagedLoader {
+        let url = try ArtistCatalogLoader.albumsURL(artistID: artist.spotifyID, group: group)
+        return pages.loader("\(Destination.artist(artist).key)/albums:\(group)") {
+            PagedLoader(firstURL: url, report: { [weak self] in self?.report($0) }) { [artistCatalog] url, refresh in
+                try await artistCatalog.albums(from: url, refresh: refresh)
+            }
+        }
+    }
+
+    func open(_ artist: CatalogArtist) {
+        guard CatalogArtist.validURI(artist.uri) else { return }
+        navigator.go(.artist(artist))
+    }
+
+    func open(_ item: CatalogItem) {
+        if let route = Destination.collection(item) {
+            navigator.go(route)
+        } else if item.kind == "artist" {
+            open(CatalogArtist(uri: item.uri, name: item.name, imageURL: item.imageURL, images: item.images))
+        }
+    }
+
+    func open(_ album: CatalogAlbumRef) {
+        navigator.go(.album(CatalogItem(uri: album.uri, name: album.name, subtitle: "", kind: "album", durationMS: 0, imageURL: nil)))
+    }
+
+    /// Routes the app's own links, `smalltify://artist/<id>?name=…` and `smalltify://album/<id>?name=…`,
+    /// which list text uses so each artist name in a line can be clicked on its own.
+    func handle(_ url: URL) -> Bool {
+        guard url.scheme == AppLink.scheme, let host = url.host() else { return false }
+        let id = url.lastPathComponent
+        let name = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first { $0.name == "name" }?.value ?? ""
+        switch host {
+        case "artist": open(CatalogArtist(uri: "spotify:artist:\(id)", name: name))
+        case "album" where CatalogItem.validURI("spotify:album:\(id)"):
+            open(CatalogAlbumRef(uri: "spotify:album:\(id)", name: name))
+        default: return false
+        }
+        return true
+    }
+
+    // MARK: - Playback
+
+    /// Plays a whole track, album, playlist or episode by uri.
+    func play(uri: String) {
+        player.control("play", uri: uri)
+    }
+
+    /// Plays a track; within `context`, playback is meant to carry on through the rest of it.
+    /// TODO(player worker): start the context at this track once Soloist's play command is confirmed.
+    func play(_ track: CatalogItem, in context: PlaybackContext?) {
+        player.control("play", uri: track.uri)
+    }
+
+    func enqueue(_ item: CatalogItem) {
+        guard item.kind == "track" || item.kind == "episode" else { return }
+        Task {
+            do {
+                try await player.send("add_to_queue", uri: item.uri)
+                notices.toast("已加入队列")
+            } catch { player.error = error.localizedDescription }
+        }
+    }
+
+    /// The user's saved tracks as a playback context.
+    var collectionContext: PlaybackContext? {
+        profile.map { PlaybackContext(uri: "spotify:user:\($0.id):collection") }
+    }
+
+    func copyLink(_ url: URL?) {
+        guard let url else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        notices.toast("已复制链接")
+    }
+
+    func openInSpotify(_ url: URL?) {
+        guard let url else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - Account
+
+    private func loadProfile() {
+        Task {
+            do {
+                let data = try await api.get(OfficialWebAPI.apiURL(path: "/me"))
+                guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let id = object["id"] as? String else { return }
+                profile = AccountProfile(id: id, displayName: object["display_name"] as? String ?? id,
+                                      imageURL: CatalogItem.parseImages(object["images"]).first?.url)
+            } catch { report(error) }
+        }
     }
 
     private func observePlaybackForPrefetch() {
@@ -93,13 +275,13 @@ import Observation
 
     func signIn() {
         guard !authorizing else { return }
+        guard !isFixture else { return notices.toast("演示模式：不会真的登录") }
         let id = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard id.count == 32, id.utf8.allSatisfy({ (48 ... 57).contains($0) || (65 ... 70).contains($0) || (97 ... 102).contains($0) }) else {
-            error = "请输入 Dashboard 中的 32 位 Client ID。Client Secret 不需要填写。"
+            notices.show(.init(message: "请在设置中填写 Dashboard 中的 32 位 Client ID。Client Secret 不需要填写。"))
             return
         }
         authorizing = true
-        error = nil
         authTask = Task {
             let server = LoopbackCallbackServer()
             do {
@@ -126,15 +308,19 @@ import Observation
                 prefetchTask?.cancel()
                 prefetchArtistURI = nil
                 await artistCatalog.clear()
-                try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens, connectEnabled: true))
+                try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens, connectEnabled: true,
+                                                         scopeVersion: OfficialWebAPI.scopeVersion))
                 signedIn = true
+                needsScopeUpgrade = false
                 connect.setAuthorized(true)
                 clientID = id
                 UserDefaults.standard.set(id, forKey: "smalltify.clientID")
-                notice = "Spotify 文库与 Connect 已授权。可在播放栏选择设备；本机 Soloist 配对独立保留。"
-                navigate("liked")
+                pages.clear()
+                notices.dismissBanner()
+                notices.toast("Spotify 已授权")
+                loadProfile()
             } catch {
-                if !Task.isCancelled { self.error = error.localizedDescription }
+                if !Task.isCancelled { notices.show(.init(message: error.localizedDescription)) }
             }
             await server.stop()
             authorizing = false
@@ -145,195 +331,47 @@ import Observation
     func cancelSignIn() { authTask?.cancel() }
 
     func signOut() {
+        guard !isFixture else { return notices.toast("演示模式：不会退出") }
         authTask?.cancel()
-        loadTask?.cancel()
         prefetchTask?.cancel()
         prefetchArtistURI = nil
-        catalogError = nil
         connect.setAuthorized(false)
-        loadGeneration = UUID()
-        items = []
-        nextPage = nil
-        loading = false
+        pages.clear()
         Task {
             do {
                 try await api.replaceGrant(nil)
                 await artistCatalog.clear()
                 signedIn = false
-                notice = "文库已退出；Soloist 配对独立保留。"
-            } catch { self.error = error.localizedDescription }
+                profile = nil
+                navigator.reset(to: .home)
+                notices.toast("已退出 Spotify 文库")
+            } catch { notices.show(.init(message: error.localizedDescription)) }
         }
     }
 
     func savePlayer(key: String) {
+        guard !isFixture else { return notices.toast("演示模式：不会保存密钥") }
         do {
             let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty || hasPlayerKey else { throw SmalltifyError("请输入 Soloist API Key。") }
             guard trimmed.count <= 4096, !trimmed.contains("\n"), !trimmed.contains("\0") else { throw SmalltifyError("API Key 格式不正确。") }
             if !trimmed.isEmpty { try SmalltifySecrets.save(Data(trimmed.utf8), key: "soloist-key") }
             hasPlayerKey = true
-            cacheMB = min(102400, max(100, cacheMB))
+            cacheMB = min(102_400, max(100, cacheMB))
             UserDefaults.standard.set(cacheMB, forKey: "smalltify.cacheMB")
             Task {
                 await player.stop()
                 await player.start(cacheMB: cacheMB)
             }
-            notice = "设置已保存。首次使用请在官方 Spotify 的设备列表中选择 Smalltify。"
-        } catch { self.error = error.localizedDescription }
+        } catch { notices.show(.init(message: error.localizedDescription)) }
     }
 
-    func navigate(_ section: String) {
-        history = []
-        selected = section
-        collection = nil
-        artist = nil
-        loadTask?.cancel()
-        loadGeneration = UUID()
-        loading = false
-        catalogError = nil
-        if section == "settings" { return }
-        do {
-            switch section {
-            case "liked": title = "喜欢的歌曲"; load(try OfficialWebAPI.apiURL(path: "/me/tracks", query: [.init(name: "limit", value: "50")]))
-            case "playlists": title = "我的歌单"; load(try OfficialWebAPI.apiURL(path: "/me/playlists", query: [.init(name: "limit", value: "50")]))
-            case "albums": title = "收藏专辑"; load(try OfficialWebAPI.apiURL(path: "/me/albums", query: [.init(name: "limit", value: "50")]))
-            case "search": search()
-            default: break
-            }
-        } catch { self.error = error.localizedDescription }
-    }
-
-    func search() {
-        history = []
-        selected = "search"
-        collection = nil
-        artist = nil
-        title = "搜索"
-        catalogError = nil
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else {
-            loadTask?.cancel(); loadGeneration = UUID(); items = []; nextPage = nil; loading = false
-            return
-        }
-        do {
-            load(try OfficialWebAPI.apiURL(path: "/search", query: [
-                .init(name: "q", value: text), .init(name: "type", value: searchType), .init(name: "limit", value: "10"),
-            ]), searchType: searchType)
-        } catch { self.error = error.localizedDescription }
-    }
-
-    func openCollection(_ item: CatalogItem) {
-        guard item.isCollection else { return }
-        history.append(currentDestination)
-        showCollection(item)
-    }
-
-    private func showCollection(_ item: CatalogItem) {
-        artist = nil
-        collection = item
-        title = item.name
-        do {
-            let path = item.kind == "playlist" ? "/playlists/\(item.spotifyID)/items" : "/albums/\(item.spotifyID)/tracks"
-            load(try OfficialWebAPI.apiURL(path: path, query: [.init(name: "limit", value: "50")]))
-        } catch { self.error = error.localizedDescription }
-    }
-
-    private var currentDestination: CatalogDestination {
-        if let collection { return .collection(collection) }
-        if let artist { return .artist(artist, group: artistGroup) }
-        return .section(selected)
-    }
-
-    func openArtist(_ artist: CatalogArtist) {
-        guard CatalogArtist.validURI(artist.uri) else { return }
-        history.append(currentDestination)
-        showArtist(artist, group: "album,single")
-    }
-
-    private func showArtist(_ artist: CatalogArtist, group: String) {
-        if selected == "settings" { selected = "search" }
-        collection = nil
-        self.artist = artist
-        artistGroup = group
-        title = artist.name
-        loadArtistAlbums()
-    }
-
-    func loadArtistAlbums() {
-        guard let artist else { return }
-        do {
-            let url = try ArtistCatalogLoader.albumsURL(artistID: artist.spotifyID, group: artistGroup)
-            load(url, artistID: artist.spotifyID)
-        } catch { self.error = error.localizedDescription }
-    }
-
-    func goBack() {
-        guard let destination = history.popLast() else { return }
-        switch destination {
-        case let .section(section): navigate(section)
-        case let .artist(artist, group): showArtist(artist, group: group)
-        case let .collection(item): showCollection(item)
-        }
-    }
-
-    func refresh() {
-        if let loadedURL { load(loadedURL, searchType: loadedSearchType, artistID: loadedArtistID, refresh: true) }
-    }
-
-    func loadMore() {
-        if let nextPage, !loading { load(nextPage, searchType: loadedSearchType, append: true, artistID: loadedArtistID) }
-    }
-
-    private func load(_ url: URL, searchType: String? = nil, append: Bool = false, artistID: String? = nil, refresh: Bool = false) {
-        loadTask?.cancel()
-        let generation = UUID()
-        loadGeneration = generation
-        if !append {
-            items = []; nextPage = nil; loadedURL = url; loadedSearchType = searchType; loadedArtistID = artistID
-        }
-        guard signedIn else { loading = false; return }
-        loading = true
-        error = nil
-        catalogError = nil
-        loadTask = Task {
-            defer { if generation == loadGeneration { loading = false } }
-            do {
-                async let profile = loadArtistProfile(artistID, refresh: refresh)
-                let page: CatalogPage
-                if artistID != nil {
-                    page = try await artistCatalog.albums(from: url, refresh: refresh)
-                } else {
-                    page = try CatalogPage.parse(try await api.get(url), searchType: searchType)
-                }
-                let artistProfile = await profile
-                try Task.checkCancellation()
-                guard generation == loadGeneration else { return }
-                if append { items.append(contentsOf: page.items) } else { items = page.items }
-                nextPage = page.next
-                if let artistProfile, artist?.uri == artistProfile.uri {
-                    artist = artistProfile
-                    title = artistProfile.name
-                }
-            } catch {
-                if generation == loadGeneration, !Task.isCancelled {
-                    self.error = error.localizedDescription
-                    catalogError = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func loadArtistProfile(_ id: String?, refresh: Bool) async -> CatalogArtist? {
-        guard let id else { return nil }
-        return await artistCatalog.profile(artistID: id, refresh: refresh)
-    }
-
-    func playLink() {
-        guard let uri = Self.spotifyURI(from: directLink) else {
-            error = "请输入 open.spotify.com 的曲目、专辑、歌单链接，或 spotify: 类型的 URI。"
-            return
-        }
-        player.control("play", uri: uri)
+    /// Plays an `open.spotify.com` link or `spotify:` uri; false when it is neither.
+    @discardableResult
+    func play(link: String) -> Bool {
+        guard let uri = Self.spotifyURI(from: link) else { return false }
+        play(uri: uri)
+        return true
     }
 
     nonisolated static func spotifyURI(from input: String) -> String? {
@@ -345,5 +383,27 @@ import Observation
         guard parts.count == 2 else { return nil }
         let uri = "spotify:\(parts[0]):\(parts[1])"
         return CatalogItem.validURI(uri) ? uri : nil
+    }
+}
+
+/// Links the app routes itself; see `SmalltifyModel.handle(_:)`.
+nonisolated enum AppLink {
+    static let scheme = "smalltify"
+
+    static func artist(_ artist: CatalogArtist) -> URL? {
+        url(host: "artist", id: artist.spotifyID, name: artist.name)
+    }
+
+    static func album(_ album: CatalogAlbumRef) -> URL? {
+        url(host: "album", id: String(album.uri.dropFirst("spotify:album:".count)), name: album.name)
+    }
+
+    private static func url(host: String, id: String, name: String) -> URL? {
+        var parts = URLComponents()
+        parts.scheme = scheme
+        parts.host = host
+        parts.path = "/" + id
+        parts.queryItems = [URLQueryItem(name: "name", value: name)]
+        return parts.url
     }
 }

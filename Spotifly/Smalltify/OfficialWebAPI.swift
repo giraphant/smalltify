@@ -4,6 +4,11 @@ nonisolated struct OfficialGrant: Codable, Sendable {
     var clientID: String
     var tokens: KeymasterTokens
     var connectEnabled: Bool? = nil
+    /// The `OfficialWebAPI.scopeVersion` this grant was authorized with; nil predates versioning.
+    var scopeVersion: Int? = nil
+
+    /// Whether features added since this grant need the user to authorize once more.
+    var needsScopeUpgrade: Bool { (scopeVersion ?? 0) < OfficialWebAPI.scopeVersion }
 
     static func load() -> Self? {
         guard let data = SmalltifySecrets.load("web-grant") else { return nil }
@@ -13,6 +18,16 @@ nonisolated struct OfficialGrant: Codable, Sendable {
 
 /// Own-client PKCE grant only. Never uses KeymasterSession or the desktop client id.
 actor OfficialWebAPI {
+    /// Bump `scopeVersion` whenever `scopes` grows, so older grants are asked to reauthorize.
+    nonisolated static let scopes = [
+        "user-read-private", "user-library-read", "user-library-modify",
+        "playlist-read-private", "playlist-read-collaborative",
+        "user-follow-read", "user-follow-modify",
+        "user-top-read", "user-read-recently-played",
+        "user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing",
+    ].joined(separator: " ")
+    nonisolated static let scopeVersion = 2
+
     private var grant: OfficialGrant?
     private var epoch = UUID()
     private var refreshing: Task<OfficialGrant, Error>?
@@ -67,6 +82,18 @@ actor OfficialWebAPI {
         try await request(url, method: "GET")
     }
 
+    /// Library writes: saving albums and tracks, following artists and playlists.
+    @discardableResult
+    func send(method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil) async throws -> Data {
+        let writable = ["/me/library", "/me/albums", "/me/tracks", "/me/following"]
+        let playlistFollow = path.hasPrefix("/playlists/") && path.hasSuffix("/followers")
+        guard ["PUT", "POST", "DELETE"].contains(method),
+              playlistFollow || writable.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else {
+            throw SmalltifyError("无效的文库写入请求。")
+        }
+        return try await request(Self.apiURL(path: path, query: query), method: method, body: body)
+    }
+
     func sendPlayer(method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil) async throws {
         guard ["PUT", "POST"].contains(method), path == "/me/player" || path.hasPrefix("/me/player/") else {
             throw SmalltifyError("无效的播放控制请求。")
@@ -79,7 +106,8 @@ actor OfficialWebAPI {
         let expectedEpoch = epoch
         for attempt in 0 ... 1 {
             guard Date() >= retryAfter else {
-                throw SmalltifyError("Spotify 请求限流，请稍后再试（约 \(max(1, Int(retryAfter.timeIntervalSinceNow))) 秒）。")
+                let seconds = max(1, Int(retryAfter.timeIntervalSinceNow))
+                throw SmalltifyError("Spotify 请求限流，请稍后再试（约 \(seconds) 秒）。", reason: .rateLimited(seconds: seconds))
             }
             let token = try await accessToken()
             guard expectedEpoch == epoch else { throw CancellationError() }
@@ -97,15 +125,15 @@ actor OfficialWebAPI {
             case 200, 204: return data
             case 401 where attempt == 0:
                 if grant?.tokens.accessToken == token { grant?.tokens.expiresAt = .distantPast }
-            case 401: throw SmalltifyError("Spotify 登录已失效，请在设置中重新授权。")
+            case 401: throw SmalltifyError("Spotify 登录已失效，请在设置中重新授权。", reason: .authExpired)
             case 403 where url.path.hasPrefix("/v1/me/player"):
-                throw SmalltifyError("Spotify 拒绝播放控制（403）。请重新授权 Connect，并确认目标设备支持远程控制。")
+                throw SmalltifyError("Spotify 拒绝播放控制（403）。请重新授权 Connect，并确认目标设备支持远程控制。", reason: .forbidden)
             case 403:
-                throw SmalltifyError("Spotify 拒绝访问（403）。请确认开发者应用的 Premium 与用户授权；歌单曲目接口仅允许读取自己拥有或参与协作的歌单。")
+                throw SmalltifyError("Spotify 拒绝访问（403）。请确认开发者应用的 Premium 与用户授权；歌单曲目接口仅允许读取自己拥有或参与协作的歌单。", reason: .forbidden)
             case 429:
                 let delay = max(1, Double(http.value(forHTTPHeaderField: "Retry-After") ?? "30") ?? 30)
                 retryAfter = Date().addingTimeInterval(delay)
-                throw SmalltifyError("Spotify 请求限流，请 \(Int(delay)) 秒后重试。")
+                throw SmalltifyError("Spotify 请求限流，请 \(Int(delay)) 秒后重试。", reason: .rateLimited(seconds: Int(delay)))
             default:
                 let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 let details = object?["error"] as? [String: Any]
@@ -116,11 +144,11 @@ actor OfficialWebAPI {
                 throw SmalltifyError("Spotify 请求失败（HTTP \(http.statusCode)）。" + suffix)
             }
         }
-        throw SmalltifyError("请重新登录 Spotify。")
+        throw SmalltifyError("请重新登录 Spotify。", reason: .authExpired)
     }
 
     private func accessToken() async throws -> String {
-        guard let grant else { throw SmalltifyError("请先在设置中使用 Client ID 登录。") }
+        guard let grant else { throw SmalltifyError("请先在设置中使用 Client ID 登录。", reason: .signedOut) }
         if !grant.tokens.needsRefresh() { return grant.tokens.accessToken }
         if let refreshing { return try await refreshing.value.tokens.accessToken }
         let expectedEpoch = epoch
@@ -129,7 +157,8 @@ actor OfficialWebAPI {
                 "grant_type": "refresh_token", "refresh_token": grant.tokens.refreshToken,
                 "client_id": grant.clientID,
             ], fallback: grant.tokens.refreshToken, session: session)
-            return OfficialGrant(clientID: grant.clientID, tokens: tokens, connectEnabled: grant.connectEnabled)
+            return OfficialGrant(clientID: grant.clientID, tokens: tokens, connectEnabled: grant.connectEnabled,
+                                 scopeVersion: grant.scopeVersion)
         }
         refreshing = task
         defer { if expectedEpoch == epoch { refreshing = nil } }
@@ -146,7 +175,7 @@ actor OfficialWebAPI {
             URLQueryItem(name: "client_id", value: clientID),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: "http://127.0.0.1:\(port)/login"),
-            URLQueryItem(name: "scope", value: "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state"),
+            URLQueryItem(name: "scope", value: scopes),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: PKCE.codeChallenge(for: verifier)),
             URLQueryItem(name: "state", value: state),
@@ -169,7 +198,9 @@ actor OfficialWebAPI {
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw SmalltifyError("Spotify 授权失败（HTTP \(status)），请检查 Client ID、回调地址，或重新登录。")
+            // A refresh token Spotify no longer accepts answers 400 invalid_grant: only a new sign-in helps.
+            throw SmalltifyError("Spotify 授权失败（HTTP \(status)），请检查 Client ID、回调地址，或重新登录。",
+                                 reason: status == 400 || status == 401 ? .authExpired : .other)
         }
         return try KeymasterAuth.parseTokenResponse(data, fallbackRefreshToken: fallback)
     }

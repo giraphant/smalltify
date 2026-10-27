@@ -242,3 +242,13 @@ import Security
 private extension String {
     var leftPaddedHex: String { count == 1 ? "0" + self : self }
 }
+
+#if DEBUG
+    extension SoloistController {
+        /// Fixture mode: shows the player as running and paired, with no Soloist process.
+        func debugPretendConnected() {
+            running = true
+            connected = true
+        }
+    }
+#endif

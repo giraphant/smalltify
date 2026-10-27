@@ -38,6 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var soloist: SoloistController?
 
     func applicationDidFinishLaunching(_: Notification) {
+        // Artwork is loaded through URLSession.shared; the default cache keeps almost none of it.
+        URLCache.shared = URLCache(memoryCapacity: 64 << 20, diskCapacity: 512 << 20)
+        #if DEBUG
+            DebugFixtures.snapshotAndQuit()
+        #endif
         _ = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
             endSearchEditing(onClickOf: event)
             return event
@@ -69,8 +74,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SpotiflyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var model: SmalltifyModel? = SpotiflyApp.hostsUnitTests ? nil : SmalltifyModel()
+    @State private var model: SmalltifyModel? = SpotiflyApp.makeModel()
     static let hostsUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+    private static func makeModel() -> SmalltifyModel? {
+        guard !hostsUnitTests else { return nil }
+        #if DEBUG
+            if DebugFixtures.isEnabled { return DebugFixtures.makeModel() }
+        #endif
+        return SmalltifyModel()
+    }
 
     var body: some Scene {
         Window("Smalltify", id: "main") {
@@ -82,33 +95,22 @@ struct SpotiflyApp: App {
                     }
             }
         }
-        .defaultSize(width: 1050, height: 760)
-        .commands {
-            SidebarCommands()
-            CommandMenu("播放") {
-                Button("播放 / 暂停") {
-                    guard let player = model?.player else { return }
-                    player.control(player.displaySnapshot.status == "playing" ? "pause" : "play")
-                }
-                .keyboardShortcut(.space, modifiers: [])
-                .disabled(model?.player.canControl != true)
-                Button("下一首") { model?.player.control("skip_next") }
-                    .keyboardShortcut(.rightArrow, modifiers: .command)
-                    .disabled(model?.player.canControl != true)
-                Button("上一首") { model?.player.control("skip_prev") }
-                    .keyboardShortcut(.leftArrow, modifiers: .command)
-                    .disabled(model?.player.canControl != true)
+        .defaultSize(width: 1280, height: 800)
+        .commands { SmalltifyCommands(model: model) }
+
+        Window("迷你播放器", id: MiniPlayerWindow.id) {
+            if let model {
+                MiniPlayerWindow(model: model)
+                    .environment(model)
             }
         }
+        .windowResizability(.contentSize)
+        .defaultPosition(.topTrailing)
+
         Settings {
             if let model {
-                VStack(spacing: 0) {
-                    if let message = model.error {
-                        SmalltifyMessage(message: message, isError: true) { model.error = nil }
-                    }
-                    SmalltifySettings(model: model)
-                }
-                .frame(width: 650, height: 720)
+                SettingsWindow(model: model)
+                    .environment(model)
             }
         }
     }

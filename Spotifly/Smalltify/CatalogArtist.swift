@@ -1,11 +1,20 @@
 import Foundation
 
-nonisolated struct CatalogArtist: Identifiable, Sendable, Equatable {
+nonisolated struct CatalogArtist: Identifiable, Sendable, Hashable {
     let uri: String
     let name: String
     var imageURL: URL?
+    /// Every size Spotify offered, smallest first; empty for artists named only in a track.
+    var images: [CatalogImage] = []
     var id: String { uri }
     var spotifyID: String { String(uri.dropFirst("spotify:artist:".count)) }
+    var openURL: URL? { URL(string: "https://open.spotify.com/artist/\(spotifyID)") }
+
+    /// The smallest image at least `pixels` wide, else the largest there is.
+    func imageURL(minPixels pixels: CGFloat) -> URL? {
+        let sized = images.filter { $0.width != nil }
+        return sized.first { CGFloat($0.width ?? 0) >= pixels }?.url ?? sized.last?.url ?? imageURL
+    }
 
     static func validURI(_ uri: String) -> Bool {
         guard uri.hasPrefix("spotify:artist:") else { return false }
@@ -21,7 +30,7 @@ nonisolated struct CatalogArtist: Identifiable, Sendable, Equatable {
                   url.scheme == "https", url.user == nil, url.password == nil else { return nil }
             return url
         }.first
-        return Self(uri: uri, name: name, imageURL: imageURL)
+        return Self(uri: uri, name: name, imageURL: imageURL, images: CatalogItem.parseImages(object["images"]))
     }
 
     static func fromSoloist(_ entity: [String: Any]) -> Self? {

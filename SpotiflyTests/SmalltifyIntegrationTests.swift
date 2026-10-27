@@ -17,7 +17,7 @@ struct SmalltifyProtocolTests {
         #expect(query["scope"]?.contains("user-read-playback-state") == true)
         #expect(query["scope"]?.contains("user-modify-playback-state") == true)
         #expect(query["scope"]?.contains("playlist-modify") == false)
-        #expect(query["scope"]?.contains("user-library-modify") == false)
+        #expect(query["scope"]?.contains("user-library-modify") == true)
         #expect(query["client_secret"] == nil)
     }
 

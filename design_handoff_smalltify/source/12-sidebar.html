@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hans"><head>
+<meta charset="utf-8">
+<title>Smalltify 侧边栏</title>
+<script src="99d7f198-5957-4cd6-a379-731895101455"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<nav aria-label="侧边栏" style="width: 100%; min-height: 704px; height: 100%; box-sizing: border-box; padding: 14px 10px 12px; display: flex; flex-direction: column; gap: 18px; color: {{t.text}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif; font-size: 13px">
+<div aria-hidden="true" style="display: flex; gap: 8px; padding: 2px 6px 4px">
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #FF5F57; display: block"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #FEBC2E; display: block"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840; display: block"></span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<a href="Home.dc.html" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; background: {{bg.home}}; color: {{t.text}}; text-decoration: none; font-weight: {{fw.home}}"><svg aria-hidden="true" width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{ic.home}}" stroke-width="1.8" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>首页</a>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<div style="font-size: 11px; font-weight: 600; color: {{t.sub}}; padding: 0 8px 4px">文库</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; background: {{bg.liked}}; color: {{t.text}}; text-decoration: none; font-weight: {{fw.liked}}"><svg aria-hidden="true" width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{ic.liked}}" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>喜欢的歌曲</a>
+<a href="Playlist.dc.html" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; background: {{bg.playlists}}; color: {{t.text}}; text-decoration: none; font-weight: {{fw.playlists}}"><svg aria-hidden="true" width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{ic.playlists}}" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h11M4 12h11M4 18h7"></path><circle cx="17.5" cy="17.5" r="2.5"></circle><path d="M20 17.5V9"></path></svg>歌单</a>
+<a href="Album.dc.html" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; background: {{bg.albums}}; color: {{t.text}}; text-decoration: none; font-weight: {{fw.albums}}"><svg aria-hidden="true" width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{ic.albums}}" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5"></circle></svg>专辑</a>
+<a href="Artist.dc.html" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; background: {{bg.artists}}; color: {{t.text}}; text-decoration: none; font-weight: {{fw.artists}}"><svg aria-hidden="true" width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{ic.artists}}" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>歌手</a>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px 8px">
+<span style="font-size: 11px; font-weight: 600; color: {{t.sub}}">常用歌单</span>
+<button type="button" aria-label="保存歌单链接" style="width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: {{t.sub}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div>
+<sc-for list="{{saved}}" as="p" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 8px; border-radius: 8px">
+<span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 4px; background: {{p.bg}}; display: block; flex: none"></span>
+<span style="flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.label}}</span>
+<button type="button" aria-label="播放 {{p.label}}" style="width: 22px; height: 22px; border: 0; border-radius: 11px; background: transparent; color: {{t.sub}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="12" height="12" sc-camel-view-box="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"></path></svg></button>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px">
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: {{t.chip}}; color: {{t.text}}; text-decoration: none">
+<span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 4px; background: {{dot}}; display: block; flex: none"></span>
+<span style="font-size: 12px; flex: 1 1 auto">{{statusText}}</span>
+</a>
+<div style="display: flex; align-items: center; gap: 8px; padding: 4px 8px">
+<span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: {{t.avatar}}; color: {{t.text}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">Y</span>
+<span style="font-size: 13px; font-weight: 500">[用户名]</span>
+</div>
+</div>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;liked&quot;,&quot;playlists&quot;,&quot;albums&quot;,&quot;artists&quot;,&quot;none&quot;],&quot;default&quot;:&quot;liked&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1DB954&quot;},&quot;statusText&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;播放器就绪 · 这台 Mac&quot;},&quot;statusTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ok&quot;,&quot;busy&quot;,&quot;warn&quot;,&quot;error&quot;],&quot;default&quot;:&quot;ok&quot;},&quot;$preview&quot;:{&quot;width&quot;:240,&quot;height&quot;:704}}">
+class Component extends DCLogic {
+  renderVals() {
+    const d = this.props.dark ?? false;
+    const accent = this.props.accent ?? '#1DB954';
+    const active = this.props.active ?? 'liked';
+    const t = d
+      ? { text: '#F5F5F7', sub: '#A1A1A6', icon: '#A1A1A6', sel: 'rgba(255,255,255,0.12)', chip: 'rgba(255,255,255,0.07)', avatar: '#3A3A3C' }
+      : { text: '#1D1D1F', sub: '#6E6E73', icon: '#6E6E73', sel: 'rgba(0,0,0,0.07)', chip: 'rgba(0,0,0,0.045)', avatar: '#E3E3E8' };
+    const keys = ['home', 'liked', 'playlists', 'albums', 'artists'];
+    const bg = {}, ic = {}, fw = {};
+    keys.forEach((k) => {
+      const on = k === active;
+      bg[k] = on ? t.sel : 'transparent';
+      ic[k] = on ? accent : t.icon;
+      fw[k] = on ? '600' : '400';
+    });
+    const tones = { ok: accent, busy: '#F5A623', warn: '#F5A623', error: '#FF453A' };
+    return {
+      t: t, bg: bg, ic: ic, fw: fw,
+      dot: tones[this.props.statusTone ?? 'ok'],
+      statusText: this.props.statusText ?? '播放器就绪 · 这台 Mac',
+      saved: [
+        { label: '每周新发现', bg: '#5E40BE' },
+        { label: '新歌雷达', bg: '#C2185B' },
+        { label: '[已保存的歌单名]', bg: '#3A5A78' }
+      ]
+    };
+  }
+}
+</script>
+
+
+</body></html>

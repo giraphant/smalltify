@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SmalltifyPlayerBar: View {
     @Bindable var player: SoloistController
-    let openArtist: (CatalogArtist) -> Void
     let authorizeConnect: () -> Void
     @State private var showingDevices = false
     @State private var seeking: Double?
@@ -10,9 +9,6 @@ struct SmalltifyPlayerBar: View {
 
     var body: some View {
         VStack {
-            if let error = player.error {
-                SmalltifyMessage(message: error, isError: true) { player.error = nil }
-            }
             HStack {
                 AsyncImage(url: player.displaySnapshot.coverURL) { image in
                     image.resizable().scaledToFit()
@@ -25,7 +21,7 @@ struct SmalltifyPlayerBar: View {
                 .accessibilityLabel("当前歌曲封面")
                 VStack(alignment: .leading) {
                     Text(player.displaySnapshot.title).lineLimit(1).bold()
-                    ArtistLinks(artists: player.displaySnapshot.artists, fallback: player.displaySnapshot.artist, open: openArtist)
+                    ArtistLinks(artists: player.displaySnapshot.artists, fallback: player.displaySnapshot.artist)
                         .font(.caption)
                 }
                 .frame(minWidth: 140, maxWidth: 260, alignment: .leading)

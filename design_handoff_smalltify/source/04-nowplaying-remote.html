@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-Hans"><head>
+<meta charset="utf-8">
+<title>Smalltify · 正在播放侧栏</title>
+<script src="042ff700-fce9-4b79-91d4-87ba409a7512"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 800px; display: flex; flex-direction: column; background: {{t.win}}; color: {{t.text}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif; font-size: 13px">
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; min-height: 0">
+<div style="flex: 1 1 220px; margin: 8px; border-radius: 16px; background: {{t.panel}}; border: 1px solid {{t.panelBorder}}; box-shadow: {{t.panelShadow}}; display: flex">
+<dc-import name="Sidebar" dark="{{dark}}" accent="{{accent}}" active="liked" status-text="远程 · 客厅音箱" status-tone="busy" hint-size="100%,704px"></dc-import>
+</div>
+
+<main style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column">
+<div style="padding-top: 8px">
+<dc-import name="Toolbar" dark="{{dark}}" heading="喜欢的歌曲" subheading="[总数] 首 · 已加载 50 首" can-back="{{ false }}" hint-size="100%,52px"></dc-import>
+</div>
+<div style="flex: 1 1 auto; overflow: auto; padding: 10px 16px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px; border-radius: 8px; background: {{r.bg}}">
+<span style="width: 22px; text-align: center; color: {{t.sub}}; font-variant-numeric: tabular-nums">
+<sc-if value="{{r.isPlaying}}" hint-placeholder-val="{{ false }}"><svg role="img" aria-label="正在播放" width="13" height="13" sc-camel-view-box="0 0 24 24"><rect x="3" y="9" width="4" height="12" rx="1" fill="{{accent}}"></rect><rect x="10" y="3" width="4" height="18" rx="1" fill="{{accent}}"></rect><rect x="17" y="12" width="4" height="9" rx="1" fill="{{accent}}"></rect></svg></sc-if>
+<sc-if value="{{r.notPlaying}}" hint-placeholder-val="{{ true }}">{{r.n}}</sc-if>
+</span>
+<span aria-hidden="true" style="width: 34px; height: 34px; border-radius: 5px; background: {{r.cover}}; display: block; flex: none"></span>
+<span style="flex: 2 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: {{r.weight}}">{{r.title}}</span>
+<a href="Artist.dc.html" style="flex: 1 1 0; min-width: 0; color: {{t.sub}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.artist}}</a>
+<span style="width: 44px; text-align: right; color: {{t.sub}}; font-variant-numeric: tabular-nums">{{r.time}}</span>
+</div>
+</sc-for>
+</div>
+</main>
+
+<aside aria-label="正在播放" style="flex: 0 0 300px; margin: 8px 8px 8px 0; border-radius: 16px; background: {{t.panel}}; border: 1px solid {{t.panelBorder}}; box-shadow: {{t.panelShadow}}; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 13px; font-weight: 700">正在播放</h2>
+<a href="Main.dc.html" aria-label="关闭侧栏" style="width: 24px; height: 24px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: {{t.sub}}"><svg aria-hidden="true" width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></a>
+</div>
+<div role="status" style="display: flex; gap: 8px; padding: 8px 10px; border-radius: 10px; background: {{t.note}}; font-size: 12px; line-height: 17px">
+<svg aria-hidden="true" width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" style="flex: none; margin-top: 1px"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3"></circle></svg>
+<span>在<strong style="font-weight: 600">客厅音箱</strong>上播放。远程控制，状态约每 5 秒同步一次；此设备不允许调节音量。</span>
+</div>
+<div aria-hidden="true" style="width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; background: #3A5A78; box-shadow: 0 10px 28px rgba(20,40,60,0.28)"></div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<div style="font-size: 17px; font-weight: 700">潮汐电台</div>
+<a href="Artist.dc.html" style="font-size: 13px">马洛·韦尔</a>
+<a href="Album.dc.html" style="font-size: 12px; color: {{t.sub}}">潮汐电台 · 2024</a>
+</div>
+<div style="height: 1px; background: {{t.sep}}"></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h3 style="margin: 0; font-size: 12px; font-weight: 700">接下来播放</h3>
+<span style="font-size: 11px; color: {{t.sub}}">只读</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{queue}}" as="q" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px">
+<span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 4px; background: {{q.cover}}; display: block; flex: none"></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{q.title}}</span><span style="font-size: 11px; color: {{t.sub}}">{{q.artist}}</span></span>
+</div>
+</sc-for>
+</div>
+<p style="margin: auto 0 0; font-size: 11px; line-height: 16px; color: {{t.sub}}">队列不能排序、删除或清空；在歌曲上用「加入队列」只会加到队尾。</p>
+</aside>
+</div>
+
+<div style="border-top: 1px solid {{t.sep}}; background: {{t.bar}}">
+<dc-import name="PlayerBar" dark="{{dark}}" accent="{{accent}}" remote="{{ true }}" vol-locked="{{ true }}" panel-open="{{ true }}" device-label="客厅音箱" hint-size="100%,64px"></dc-import>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1DB954&quot;},&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:800}}">
+class Component extends DCLogic {
+  renderVals() {
+    const d = this.props.dark ?? false;
+    const accent = this.props.accent ?? '#1DB954';
+    const t = d
+      ? { win: '#1E1E1E', panel: 'rgba(44,44,46,0.80)', panelBorder: 'rgba(255,255,255,0.09)', panelShadow: '0 2px 10px rgba(0,0,0,0.35)', text: '#F5F5F7', sub: '#A1A1A6', sep: 'rgba(255,255,255,0.08)', zebra: 'rgba(255,255,255,0.025)', bar: 'rgba(32,32,34,0.94)', note: 'rgba(29,185,84,0.16)' }
+      : { win: '#FFFFFF', panel: 'rgba(244,244,247,0.82)', panelBorder: 'rgba(0,0,0,0.06)', panelShadow: '0 2px 10px rgba(0,0,0,0.06)', text: '#1D1D1F', sub: '#6E6E73', sep: 'rgba(0,0,0,0.07)', zebra: 'rgba(0,0,0,0.022)', bar: 'rgba(250,250,252,0.94)', note: 'rgba(29,185,84,0.12)' };
+    const data = [
+      ['潮汐电台', '马洛·韦尔', '3:58', '#3A5A78'], ['纸灯笼', '朱妮珀·黑尔', '4:12', '#B5532E'],
+      ['凌晨的渡轮', '马洛·韦尔、索尔', '3:12', '#3A5A78'], ['北方静电', '艾达·布雷克', '4:40', '#2E2A3A'],
+      ['玻璃温室', '鹪鹩乐队', '6:21', '#7A8F9E'], ['灯塔', '朱妮珀·黑尔', '3:47', '#B5532E'],
+      ['玻璃浮球', '马洛·韦尔', '4:27', '#3A5A78'], ['周日慢板', '索尔', '5:05', '#8C4A6B'],
+      ['信号火', '马洛·韦尔', '4:11', '#3A5A78'], ['雾中散步', '林间录音', '2:58', '#2F6B5B']
+    ];
+    return {
+      t: t, dark: d, accent: accent,
+      rows: data.map((r, i) => ({ n: i + 1, title: r[0], artist: r[1], time: r[2], cover: r[3], isPlaying: i === 0, notPlaying: i !== 0, weight: i === 0 ? '600' : '400', bg: i % 2 === 1 ? t.zebra : 'transparent' })),
+      queue: [
+        { title: '纸灯笼', artist: '朱妮珀·黑尔', cover: '#B5532E' },
+        { title: '凌晨的渡轮', artist: '马洛·韦尔、索尔', cover: '#3A5A78' },
+        { title: '北方静电', artist: '艾达·布雷克', cover: '#2E2A3A' },
+        { title: '玻璃温室', artist: '鹪鹩乐队', cover: '#7A8F9E' },
+        { title: '灯塔', artist: '朱妮珀·黑尔', cover: '#B5532E' }
+      ]
+    };
+  }
+}
+</script>
+
+
+</body></html>

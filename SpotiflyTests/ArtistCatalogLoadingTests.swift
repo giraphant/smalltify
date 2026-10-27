@@ -13,9 +13,9 @@ import Testing
         return OfficialWebAPI(grant: grant, session: URLSession(configuration: config), persist: { _ in })
     }
 
-    private func waitForLoad(_ model: SmalltifyModel) async throws {
+    private func waitForLoad(_ loader: PagedLoader) async throws {
         for _ in 0 ..< 200 {
-            if !model.loading { return }
+            if loader.phase != .loading, loader.phase != .idle, !loader.loadingMore { return }
             try await Task.sleep(for: .milliseconds(10))
         }
         Issue.record("Artist catalog load did not finish")
@@ -25,22 +25,23 @@ import Testing
         ArtistCatalogProtocol.state.reset(.success)
         let model = SmalltifyModel(restoreCredentials: false, api: api())
         model.signedIn = true
-        model.openArtist(artist)
-        try await waitForLoad(model)
-        #expect(model.catalogError == nil)
-        #expect(model.items.count == 30)
-        #expect(model.artist?.imageURL?.host == "i.scdn.co")
-        let next = try #require(model.nextPage)
+        let loader = try model.artistAlbumsLoader(artist, group: "album,single")
+        loader.loadIfNeeded()
+        try await waitForLoad(loader)
+        #expect(loader.failure == nil)
+        #expect(loader.items.count == 30)
+        #expect(await model.artistCatalog.profile(artistID: artist.spotifyID)?.imageURL?.host == "i.scdn.co")
+        let next = try #require(loader.next)
         #expect(URLComponents(url: next, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "offset" }?.value == "30")
         let requests = ArtistCatalogProtocol.state.albumRequests()
         #expect(requests.count == 3)
         #expect(requests.allSatisfy { url in
             URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "limit" }?.value == "10"
         })
-        model.loadMore()
-        try await waitForLoad(model)
-        #expect(model.items.count == 40)
-        #expect(model.nextPage == nil)
+        loader.loadMore()
+        try await waitForLoad(loader)
+        #expect(loader.items.count == 40)
+        #expect(loader.next == nil)
     }
 
     @Test func playbackTriggersSilentPrefetchWithoutChangingTheVisiblePage() async throws {
@@ -55,12 +56,12 @@ import Testing
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
-        #expect(model.selected == "settings")
-        #expect(model.items.isEmpty)
-        #expect(model.error == nil)
-        model.openArtist(artist)
-        try await waitForLoad(model)
-        #expect(model.items.count == 30)
+        #expect(model.navigator.current == .home)
+        #expect(model.notices.banner == nil)
+        let loader = try model.artistAlbumsLoader(artist, group: "album,single")
+        loader.loadIfNeeded()
+        try await waitForLoad(loader)
+        #expect(loader.items.count == 30)
         #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
         model.player.snapshot.status = "paused"
     }
@@ -109,13 +110,14 @@ import Testing
         ArtistCatalogProtocol.state.reset(.badRequest)
         let model = SmalltifyModel(restoreCredentials: false, api: api())
         model.signedIn = true
-        model.openArtist(artist)
-        try await waitForLoad(model)
-        let error = try #require(model.catalogError)
+        let loader = try model.artistAlbumsLoader(artist, group: "album,single")
+        loader.loadIfNeeded()
+        try await waitForLoad(loader)
+        let error = try #require(loader.failure)
         #expect(error.contains("Invalid limit"))
         #expect(error.contains("400"))
         #expect(!error.contains("fixture-token"))
-        #expect(model.items.isEmpty)
+        #expect(loader.items.isEmpty)
     }
 }
 

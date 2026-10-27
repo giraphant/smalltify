@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>Smalltify 工具栏</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="toolbar" aria-label="窗口工具栏" style="width: 100%; height: 52px; box-sizing: border-box; padding: 0 12px 0 8px; display: flex; align-items: center; gap: 10px; color: {{t.text}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif">
+<div style="display: flex; align-items: center; padding: 2px; border-radius: 18px; background: {{t.glass}}; border: 1px solid {{t.glassBorder}}; box-shadow: {{t.shadow}}">
+<button type="button" aria-label="后退" style="width: 32px; height: 30px; border: 0; border-radius: 15px; background: transparent; color: {{backColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" aria-label="前进" style="width: 32px; height: 30px; border: 0; border-radius: 15px; background: transparent; color: {{fwdColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+</div>
+<div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column">
+<span style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{heading}}</span>
+<span style="font-size: 11px; color: {{t.sub}}; white-space: nowrap">{{subheading}}</span>
+</div>
+<div style="display: flex; align-items: center; padding: 2px; border-radius: 18px; background: {{t.glass}}; border: 1px solid {{t.glassBorder}}; box-shadow: {{t.shadow}}">
+<button type="button" aria-label="刷新" style="width: 34px; height: 30px; border: 0; border-radius: 15px; background: transparent; color: {{t.text}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></button>
+<button type="button" aria-label="粘贴 Spotify 链接播放（⌘⇧V）" style="width: 34px; height: 30px; border: 0; border-radius: 15px; background: transparent; color: {{t.text}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; width: 240px; height: 34px; padding: 0 12px; box-sizing: border-box; border-radius: 17px; background: {{t.glass}}; border: 1px solid {{t.glassBorder}}; box-shadow: {{t.shadow}}; color: {{t.sub}}">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<label for="tb-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">搜索</label>
+<input id="tb-q" type="search" value="{{query}}" placeholder="搜索，回车确认" style="flex: 1 1 auto; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: {{t.text}}; outline: none">
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"heading":{"editor":"text","default":"喜欢的歌曲"},"subheading":{"editor":"text","default":""},"canBack":{"editor":"boolean","default":true},"canForward":{"editor":"boolean","default":false},"query":{"editor":null,"default":""},"$preview":{"width":1040,"height":52}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const d = this.props.dark ?? false;
+    const t = d
+      ? { text: '#F5F5F7', sub: '#A1A1A6', dim: '#5A5A5E', glass: 'rgba(58,58,60,0.62)', glassBorder: 'rgba(255,255,255,0.12)', shadow: '0 1px 3px rgba(0,0,0,0.35)' }
+      : { text: '#1D1D1F', sub: '#6E6E73', dim: '#BDBDC2', glass: 'rgba(255,255,255,0.72)', glassBorder: 'rgba(0,0,0,0.08)', shadow: '0 1px 3px rgba(0,0,0,0.08)' };
+    return {
+      t: t,
+      heading: this.props.heading ?? '喜欢的歌曲',
+      subheading: this.props.subheading ?? '',
+      query: this.props.query ?? '',
+      backColor: (this.props.canBack ?? true) ? t.text : t.dim,
+      fwdColor: (this.props.canForward ?? false) ? t.text : t.dim
+    };
+  }
+}
+</script>
+</body>
+</html>

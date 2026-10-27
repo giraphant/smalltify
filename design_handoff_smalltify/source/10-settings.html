@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-Hans"><head>
+<meta charset="utf-8">
+<title>Smalltify · 设置</title>
+<script src="6eae32bf-ccf9-44cd-9069-e927b9b45736"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="width: 720px; height: 720px; box-sizing: border-box; display: flex; flex-direction: column; background: {{t.win}}; border: 1px solid {{t.border}}; border-radius: 12px; color: {{t.text}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif; font-size: 13px; overflow: hidden">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 16px 10px; border-bottom: 1px solid {{t.sep}}; background: {{t.bar}}; position: relative">
+<div aria-hidden="true" style="position: absolute; left: 14px; top: 14px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #FF5F57; display: block"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #FEBC2E; display: block"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840; display: block"></span>
+</div>
+<div style="font-size: 13px; font-weight: 600">连接</div>
+<div role="tablist" aria-label="设置分类" style="display: flex; gap: 4px">
+<button type="button" role="tab" aria-selected="true" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; height: 46px; justify-content: center; border: 0; border-radius: 8px; background: {{t.sel}}; color: {{t.text}}; font: inherit; font-size: 11px; cursor: pointer"><svg aria-hidden="true" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>连接</button>
+<button type="button" role="tab" aria-selected="false" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; height: 46px; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: {{t.sub}}; font: inherit; font-size: 11px; cursor: pointer"><svg aria-hidden="true" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>关于</button>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; overflow: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 14px">
+
+<section aria-labelledby="s1" style="border-radius: 12px; background: {{t.group}}; border: 1px solid {{t.sep}}; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 22px; height: 22px; border-radius: 11px; background: {{s1.dot}}; color: {{s1.dotFg}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">1</span>
+<h2 id="s1" style="margin: 0; font-size: 14px; font-weight: 600; flex: 1 1 auto">Spotify 授权</h2>
+<span style="font-size: 12px; font-weight: 600; color: {{s1.toneText}}">{{s1.status}}</span>
+</div>
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px 12px; align-items: center">
+<label for="cid" style="color: {{t.sub}}; text-align: right">Client ID</label>
+<input id="cid" type="text" value="{{s1.cid}}" spellcheck="false" style="height: 26px; padding: 0 8px; border: 1px solid {{s1.cidBorder}}; border-radius: 6px; background: {{t.field}}; color: {{t.text}}; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; box-sizing: border-box; width: 100%">
+<span style="color: {{t.sub}}; text-align: right">回调地址</span>
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0"><code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">http://127.0.0.1:43821/login</code><button type="button" style="height: 22px; padding: 0 8px; border: 1px solid {{t.border}}; border-radius: 6px; background: {{t.btn}}; color: {{t.text}}; font: inherit; font-size: 11px; cursor: pointer">拷贝</button></div>
+</div>
+<sc-if value="{{s1.hasMsg}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="display: flex; gap: 8px; padding: 8px 10px; border-radius: 8px; background: {{t.errBg}}; font-size: 12px; line-height: 17px"><svg aria-hidden="true" width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{t.err}}" stroke-width="2.2" stroke-linecap="round" style="flex: none; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16.5h.01"></path></svg><span>{{s1.msg}}</span></div>
+</sc-if>
+<div style="display: flex; justify-content: flex-end; gap: 8px">
+<sc-for list="{{s1.buttons}}" as="b" hint-placeholder-count="1">
+<button type="button" style="height: 26px; padding: 0 14px; border: 1px solid {{b.border}}; border-radius: 6px; background: {{b.bg}}; color: {{b.fg}}; font: inherit; font-size: 12px; font-weight: {{b.weight}}; cursor: pointer">{{b.label}}</button>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="s2" style="border-radius: 12px; background: {{t.group}}; border: 1px solid {{t.sep}}; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 22px; height: 22px; border-radius: 11px; background: {{s2.dot}}; color: {{s2.dotFg}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">2</span>
+<h2 id="s2" style="margin: 0; font-size: 14px; font-weight: 600; flex: 1 1 auto">播放器（Soloist）</h2>
+<span style="font-size: 12px; font-weight: 600; color: {{s2.toneText}}">{{s2.status}}</span>
+</div>
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px 12px; align-items: center">
+<label for="key" style="color: {{t.sub}}; text-align: right">API Key</label>
+<input id="key" type="password" placeholder="{{s2.keyHint}}" style="height: 26px; padding: 0 8px; border: 1px solid {{t.border}}; border-radius: 6px; background: {{t.field}}; color: {{t.text}}; font: inherit; font-size: 12px; box-sizing: border-box; width: 100%">
+<span id="cache-l" style="color: {{t.sub}}; text-align: right">缓存上限</span>
+<div role="radiogroup" aria-labelledby="cache-l" style="display: inline-flex; justify-self: start; padding: 2px; gap: 2px; border-radius: 7px; background: {{t.seg}}">
+<sc-for list="{{caches}}" as="c" hint-placeholder-count="5">
+<button type="button" role="radio" aria-checked="{{c.checked}}" sc-camel-on-click="{{c.pick}}" style="height: 22px; padding: 0 10px; border: 0; border-radius: 5px; background: {{c.bg}}; box-shadow: {{c.shadow}}; color: {{t.text}}; font: inherit; font-size: 12px; cursor: pointer">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{s2.hasMsg}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="display: flex; gap: 8px; padding: 8px 10px; border-radius: 8px; background: {{s2.msgBg}}; font-size: 12px; line-height: 17px"><svg aria-hidden="true" width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="{{s2.msgIcon}}" stroke-width="2.2" stroke-linecap="round" style="flex: none; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16.5h.01"></path></svg><span>{{s2.msg}}</span></div>
+</sc-if>
+<div style="display: flex; justify-content: flex-end; gap: 8px">
+<button type="button" disabled="{{s2.stopDisabled}}" style="height: 26px; padding: 0 14px; border: 1px solid {{t.border}}; border-radius: 6px; background: {{t.btn}}; color: {{s2.stopFg}}; font: inherit; font-size: 12px; cursor: pointer">{{s2.stopLabel}}</button>
+<button type="button" disabled="{{s2.startDisabled}}" style="height: 26px; padding: 0 14px; border: 0; border-radius: 6px; background: {{s2.startBg}}; color: #000000; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer">{{s2.startLabel}}</button>
+</div>
+</section>
+
+<section aria-labelledby="s3" style="border-radius: 12px; background: {{t.group}}; border: 1px solid {{t.sep}}; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 22px; height: 22px; border-radius: 11px; background: {{s3.dot}}; color: {{s3.dotFg}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">3</span>
+<h2 id="s3" style="margin: 0; font-size: 14px; font-weight: 600; flex: 1 1 auto">配对</h2>
+<span style="font-size: 12px; font-weight: 600; color: {{s3.toneText}}">{{s3.status}}</span>
+</div>
+<p style="margin: 0 0 0 32px; font-size: 12px; line-height: 18px; color: {{t.sub}}">{{s3.text}}</p>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 4px 4px 0; font-size: 12px; color: {{t.sub}}">
+<span>播放器版本 [x.y.z] · {{expiry}}</span>
+<span style="flex: 1 1 auto"></span>
+<button type="button" style="border: 0; background: transparent; padding: 0; font: inherit; color: {{t.text}}; text-decoration: underline; cursor: pointer">打开缓存目录</button>
+<a href="https://developer.spotify.com/dashboard" style="color: {{t.text}}">Dashboard</a>
+<button type="button" style="border: 0; background: transparent; padding: 0; font: inherit; color: {{t.text}}; text-decoration: underline; cursor: pointer">Soloist 文档</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1DB954&quot;},&quot;auth&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ok&quot;,&quot;signingIn&quot;,&quot;port&quot;,&quot;format&quot;,&quot;expired&quot;,&quot;none&quot;],&quot;default&quot;:&quot;ok&quot;,&quot;section&quot;:&quot;状态&quot;},&quot;player&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;running&quot;,&quot;starting&quot;,&quot;stopping&quot;,&quot;stopped&quot;,&quot;noKey&quot;,&quot;error&quot;,&quot;expired&quot;],&quot;default&quot;:&quot;starting&quot;,&quot;section&quot;:&quot;状态&quot;},&quot;paired&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;section&quot;:&quot;状态&quot;},&quot;$preview&quot;:{&quot;width&quot;:720,&quot;height&quot;:720}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cache: '5 GB' };
+  }
+  renderVals() {
+    const d = this.props.dark ?? false;
+    const accent = this.props.accent ?? '#1DB954';
+    const t = d
+      ? { win: '#242426', bar: '#2C2C2E', border: 'rgba(255,255,255,0.14)', sep: 'rgba(255,255,255,0.08)', text: '#F5F5F7', sub: '#A1A1A6', dim: '#6C6C70', group: 'rgba(255,255,255,0.035)', field: '#1C1C1E', btn: '#3A3A3C', seg: 'rgba(255,255,255,0.08)', pill: '#5A5A5E', sel: 'rgba(255,255,255,0.10)', err: '#FF6961', errBg: 'rgba(255,69,58,0.16)', warn: '#FFB340', warnBg: 'rgba(255,179,64,0.14)', ok: '#30D158', idle: '#48484A' }
+      : { win: '#F5F5F7', bar: '#ECECEE', border: 'rgba(0,0,0,0.14)', sep: 'rgba(0,0,0,0.07)', text: '#1D1D1F', sub: '#6E6E73', dim: '#AEAEB2', group: '#FFFFFF', field: '#FFFFFF', btn: '#FFFFFF', seg: 'rgba(0,0,0,0.06)', pill: '#FFFFFF', sel: 'rgba(0,0,0,0.07)', err: '#C9271D', errBg: 'rgba(255,59,48,0.10)', warn: '#9A5B00', warnBg: 'rgba(255,149,0,0.12)', ok: '#1A7F37', idle: '#D1D1D6' };
+    const okDot = { dot: accent, dotFg: '#000000', toneText: t.ok };
+    const waitDot = { dot: t.idle, dotFg: t.text, toneText: t.sub };
+    const warnDot = { dot: '#FFB340', dotFg: '#000000', toneText: t.warn };
+    const errDot = { dot: '#FF453A', dotFg: '#FFFFFF', toneText: t.err };
+    const primary = (l) => ({ label: l, bg: accent, fg: '#000000', border: accent, weight: '600' });
+    const plain = (l) => ({ label: l, bg: t.btn, fg: t.text, border: t.border, weight: '400' });
+    const auth = this.props.auth ?? 'ok';
+    const goodCid = '3f9a1c0e7b2d4a6f8e5c1b0a9d7e6f42';
+    const A = {
+      ok: { ...okDot, status: '已授权 · [用户名]', cid: goodCid, buttons: [plain('退出登录')] },
+      signingIn: { ...warnDot, status: '正在浏览器中授权…', cid: goodCid, buttons: [plain('取消')] },
+      port: { ...errDot, status: '授权失败', cid: goodCid, msg: '端口 43821 被占用，无法接收回调。关闭占用该端口的程序后重试。', buttons: [primary('重试')] },
+      format: { ...errDot, status: 'Client ID 格式不对', cid: '3f9a1c0e7b2d', msg: 'Client ID 应为 32 位十六进制字符，当前只有 12 位。', buttons: [primary('登录')] },
+      expired: { ...errDot, status: '登录已过期', cid: goodCid, msg: '授权已失效，文库和设备功能暂停。重新授权后继续。', buttons: [plain('退出登录'), primary('重新授权')] },
+      none: { ...waitDot, status: '未授权', cid: '', buttons: [primary('登录')] }
+    }[auth];
+    A.hasMsg = !!A.msg;
+    A.cidBorder = auth === 'format' ? t.err : t.border;
+    const player = this.props.player ?? 'starting';
+    const P = {
+      running: { ...okDot, status: '运行中', stop: '停止', start: '保存并重启' },
+      starting: { ...warnDot, status: '启动中…', stop: '停止', start: '启动中…', busy: true },
+      stopping: { ...warnDot, status: '停止中…', stop: '停止中…', start: '保存并启动', busy: true },
+      stopped: { ...waitDot, status: '已停止', stop: '停止', start: '保存并启动', stopOff: true },
+      noKey: { ...waitDot, status: '未填写 API Key', stop: '停止', start: '保存并启动', stopOff: true, startOff: true },
+      error: { ...errDot, status: '播放器出错', stop: '停止', start: '重新启动', msg: '[播放器返回的错误信息]', tone: 'err' },
+      expired: { ...errDot, status: '版本已过期', stop: '停止', start: '保存并启动', stopOff: true, startOff: true, msg: '这个 Soloist 版本已过期（每个版本约 90 天有效）。请下载新版本后替换。', tone: 'err' }
+    }[player];
+    const S2 = {
+      dot: P.dot, dotFg: P.dotFg, toneText: P.toneText, status: P.status,
+      keyHint: player === 'noKey' ? '粘贴 Soloist API Key' : '已保存在钥匙串，留空则不修改',
+      hasMsg: !!P.msg, msg: P.msg || '',
+      msgBg: t.errBg, msgIcon: t.err,
+      stopLabel: P.stop, startLabel: P.start,
+      stopDisabled: !!(P.stopOff || player === 'stopping'),
+      startDisabled: !!(P.startOff || P.busy),
+      stopFg: (P.stopOff || player === 'stopping') ? t.dim : t.text,
+      startBg: (P.startOff || P.busy) ? t.idle : accent
+    };
+    const paired = this.props.paired ?? false;
+    const S3 = paired
+      ? { ...okDot, status: '已配对', text: '已在 Spotify 设备列表中选过「Smalltify」，配对会一直保留。' }
+      : (player === 'running'
+        ? { ...warnDot, status: '等待配对', text: '打开官方 Spotify，在设备列表里选择「Smalltify」。只需要做一次。' }
+        : { ...waitDot, status: '等待播放器', text: '播放器启动后，在官方 Spotify 的设备列表里选择「Smalltify」完成配对。只需要做一次。' });
+    const cache = this.state.cache;
+    return {
+      t: t, accent: accent, s1: A, s2: S2, s3: S3,
+      expiry: player === 'expired' ? '已过期' : '约 [N] 天后过期',
+      caches: ['1 GB', '2 GB', '5 GB', '10 GB', '20 GB'].map((l) => {
+        const on = l === cache;
+        return { label: l, checked: on ? 'true' : 'false', bg: on ? t.pill : 'transparent', shadow: on ? '0 1px 2px rgba(0,0,0,0.14)' : 'none', pick: () => this.setState({ cache: l }) };
+      })
+    };
+  }
+}
+</script>
+
+
+</body></html>

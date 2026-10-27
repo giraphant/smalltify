@@ -44,32 +44,54 @@ import Testing
         #expect(snapshot.artist.isEmpty)
     }
 
-    @Test func albumBackRestoresArtistFilterAndOriginalLibrary() {
+    @Test func backAndForwardRetraceTheVisitedPages() {
         let model = SmalltifyModel(restoreCredentials: false)
-        model.navigate("liked")
+        let navigator = model.navigator
+        navigator.go(.liked)
         let artist = CatalogArtist(uri: "spotify:artist:\(firstID)", name: "Artist")
-        model.openArtist(artist)
-        model.artistGroup = "single"
-        model.openCollection(CatalogItem(uri: "spotify:album:\(secondID)", name: "Album", subtitle: "Artist", kind: "album", durationMS: 0, imageURL: nil))
-        #expect(model.artist == nil)
-        #expect(model.collection?.name == "Album")
-        model.goBack()
-        #expect(model.artist == artist)
-        #expect(model.artistGroup == "single")
-        #expect(model.collection == nil)
-        model.goBack()
-        #expect(model.selected == "liked")
-        #expect(model.artist == nil)
-        #expect(model.history.isEmpty)
+        let album = CatalogItem(uri: "spotify:album:\(secondID)", name: "Album", subtitle: "Artist", kind: "album", durationMS: 0, imageURL: nil)
+        model.open(artist)
+        model.open(album)
+        #expect(navigator.current == .album(album))
+        navigator.goBack()
+        #expect(navigator.current == .artist(artist))
+        navigator.goBack()
+        #expect(navigator.current == .liked)
+        navigator.goForward()
+        #expect(navigator.current == .artist(artist))
+        navigator.go(.albums)
+        #expect(!navigator.canGoForward)
+        #expect(navigator.backStack == [.home, .liked, .artist(artist)])
     }
 
-    @Test func openingArtistFromSettingsCanReturnToSettings() {
+    @Test func goingToTheShowingPageAddsNoHistory() {
+        let navigator = Navigator(start: .liked)
+        navigator.go(.liked)
+        #expect(!navigator.canGoBack)
+        navigator.go(.search("潮汐"))
+        navigator.go(.search("潮汐"))
+        #expect(navigator.backStack == [.liked])
+    }
+
+    @Test func detailPagesHighlightTheirSidebarSection() {
+        let album = CatalogItem(uri: "spotify:album:\(secondID)", name: "Album", subtitle: "", kind: "album", durationMS: 0, imageURL: nil)
+        #expect(Destination.album(album).section == .albums)
+        #expect(Destination.artist(CatalogArtist(uri: "spotify:artist:\(firstID)", name: "A")).section == .artists)
+        #expect(Destination.search("x").section == nil)
+        #expect(Destination.collection(album) == .album(album))
+    }
+
+    @Test func appLinksOpenArtistAndAlbumPagesAndIgnoreOtherURLs() throws {
         let model = SmalltifyModel(restoreCredentials: false)
-        model.navigate("settings")
-        model.openArtist(CatalogArtist(uri: "spotify:artist:\(firstID)", name: "Artist"))
-        #expect(model.selected != "settings")
-        model.goBack()
-        #expect(model.selected == "settings")
-        #expect(model.history.isEmpty)
+        let artist = CatalogArtist(uri: "spotify:artist:\(firstID)", name: "马洛·韦尔")
+        #expect(model.handle(try #require(AppLink.artist(artist))))
+        #expect(model.navigator.current == .artist(artist))
+        let album = CatalogAlbumRef(uri: "spotify:album:\(secondID)", name: "潮汐电台")
+        #expect(model.handle(try #require(AppLink.album(album))))
+        guard case let .album(item) = model.navigator.current else { Issue.record("Album page did not open"); return }
+        #expect(item.uri == album.uri && item.name == album.name)
+        #expect(!model.handle(try #require(URL(string: "https://open.spotify.com/artist/\(firstID)"))))
+        #expect(model.handle(try #require(URL(string: "smalltify://artist/not-an-id?name=x"))))
+        #expect(model.navigator.current == .album(item))
     }
 }
