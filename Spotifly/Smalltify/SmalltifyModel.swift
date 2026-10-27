@@ -22,19 +22,23 @@ import Observation
     var searchType = "track"
     var directLink = ""
     var collection: CatalogItem?
+    var artist: CatalogArtist?
+    var artistGroup = "album,single"
+    private(set) var history: [CatalogDestination] = []
     private var started = false
     private var authTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
     private var loadGeneration = UUID()
     private var loadedURL: URL?
     private var loadedSearchType: String?
+    private var loadedArtistID: String?
 
-    init() {
-        let grant = OfficialGrant.load()
+    init(restoreCredentials: Bool = true) {
+        let grant = restoreCredentials ? OfficialGrant.load() : nil
         api = OfficialWebAPI(grant: grant)
         signedIn = grant != nil
         clientID = grant?.clientID ?? UserDefaults.standard.string(forKey: "smalltify.clientID") ?? ""
-        hasPlayerKey = SmalltifySecrets.load("soloist-key") != nil
+        hasPlayerKey = restoreCredentials && SmalltifySecrets.load("soloist-key") != nil
         let savedCache = UserDefaults.standard.integer(forKey: "smalltify.cacheMB")
         cacheMB = savedCache >= 100 ? min(102400, savedCache) : 2048
         if grant == nil && !hasPlayerKey { selected = "settings" }
@@ -130,8 +134,13 @@ import Observation
     }
 
     func navigate(_ section: String) {
+        history = []
         selected = section
         collection = nil
+        artist = nil
+        loadTask?.cancel()
+        loadGeneration = UUID()
+        loading = false
         if section == "settings" { return }
         do {
             switch section {
@@ -145,8 +154,10 @@ import Observation
     }
 
     func search() {
+        history = []
         selected = "search"
         collection = nil
+        artist = nil
         title = "搜索"
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
@@ -162,6 +173,12 @@ import Observation
 
     func openCollection(_ item: CatalogItem) {
         guard item.isCollection else { return }
+        history.append(currentDestination)
+        showCollection(item)
+    }
+
+    private func showCollection(_ item: CatalogItem) {
+        artist = nil
         collection = item
         title = item.name
         do {
@@ -170,20 +187,60 @@ import Observation
         } catch { self.error = error.localizedDescription }
     }
 
+    private var currentDestination: CatalogDestination {
+        if let collection { return .collection(collection) }
+        if let artist { return .artist(artist, group: artistGroup) }
+        return .section(selected)
+    }
+
+    func openArtist(_ artist: CatalogArtist) {
+        guard CatalogArtist.validURI(artist.uri) else { return }
+        history.append(currentDestination)
+        showArtist(artist, group: "album,single")
+    }
+
+    private func showArtist(_ artist: CatalogArtist, group: String) {
+        if selected == "settings" { selected = "search" }
+        collection = nil
+        self.artist = artist
+        artistGroup = group
+        title = artist.name
+        loadArtistAlbums()
+    }
+
+    func loadArtistAlbums() {
+        guard let artist else { return }
+        do {
+            let url = try OfficialWebAPI.apiURL(path: "/artists/\(artist.spotifyID)/albums", query: [
+                .init(name: "include_groups", value: artistGroup), .init(name: "limit", value: "50"),
+            ])
+            load(url, artistID: artist.spotifyID)
+        } catch { self.error = error.localizedDescription }
+    }
+
+    func goBack() {
+        guard let destination = history.popLast() else { return }
+        switch destination {
+        case let .section(section): navigate(section)
+        case let .artist(artist, group): showArtist(artist, group: group)
+        case let .collection(item): showCollection(item)
+        }
+    }
+
     func refresh() {
-        if let loadedURL { load(loadedURL, searchType: loadedSearchType) }
+        if let loadedURL { load(loadedURL, searchType: loadedSearchType, artistID: loadedArtistID) }
     }
 
     func loadMore() {
         if let nextPage, !loading { load(nextPage, searchType: loadedSearchType, append: true) }
     }
 
-    private func load(_ url: URL, searchType: String? = nil, append: Bool = false) {
+    private func load(_ url: URL, searchType: String? = nil, append: Bool = false, artistID: String? = nil) {
         loadTask?.cancel()
         let generation = UUID()
         loadGeneration = generation
         if !append {
-            items = []; nextPage = nil; loadedURL = url; loadedSearchType = searchType
+            items = []; nextPage = nil; loadedURL = url; loadedSearchType = searchType; loadedArtistID = artistID
         }
         guard signedIn else { loading = false; return }
         loading = true
@@ -191,16 +248,31 @@ import Observation
         loadTask = Task {
             defer { if generation == loadGeneration { loading = false } }
             do {
+                async let profile = loadArtistProfile(artistID)
                 let data = try await api.get(url)
                 let page = try CatalogPage.parse(data, searchType: searchType)
+                let artistProfile = await profile
                 try Task.checkCancellation()
                 guard generation == loadGeneration else { return }
                 if append { items.append(contentsOf: page.items) } else { items = page.items }
                 nextPage = page.next
+                if let artistProfile, artist?.uri == artistProfile.uri {
+                    artist = artistProfile
+                    title = artistProfile.name
+                }
             } catch {
                 if generation == loadGeneration, !Task.isCancelled { self.error = error.localizedDescription }
             }
         }
+    }
+
+    private func loadArtistProfile(_ id: String?) async -> CatalogArtist? {
+        guard let id else { return nil }
+        do {
+            let data = try await api.get(OfficialWebAPI.apiURL(path: "/artists/\(id)"))
+            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            return CatalogArtist.parse(object)
+        } catch { return nil }
     }
 
     func playLink() {

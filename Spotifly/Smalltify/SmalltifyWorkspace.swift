@@ -31,7 +31,7 @@ struct SmalltifyWorkspace: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SmalltifyPlayerBar(player: model.player)
+            SmalltifyPlayerBar(player: model.player, openArtist: model.openArtist)
                 .background(.bar)
         }
         .frame(minWidth: 850, minHeight: 620)
@@ -62,8 +62,16 @@ struct SmalltifyCatalog: View {
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
-                if model.collection != nil {
-                    Button("返回", systemImage: "chevron.left") { model.navigate(model.selected) }
+                if !model.history.isEmpty {
+                    Button("返回", systemImage: "chevron.left") { model.goBack() }
+                }
+                if let artist = model.artist {
+                    AsyncImage(url: artist.imageURL) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        Image(systemName: "person.crop.square")
+                    }
+                    .frame(width: 64, height: 64)
                 }
                 Text(model.title).font(.title2).bold().lineLimit(1)
                 Spacer()
@@ -76,11 +84,12 @@ struct SmalltifyCatalog: View {
             }
             .padding([.horizontal, .top])
 
-            if model.selected == "search", model.collection == nil {
+            if model.selected == "search", model.collection == nil, model.artist == nil {
                 HStack {
                     TextField("歌曲、歌手或专辑名称", text: $model.query).onSubmit { model.search() }
                     Picker("搜索类型", selection: $model.searchType) {
                         Text("歌曲").tag("track")
+                        Text("歌手").tag("artist")
                         Text("专辑").tag("album")
                         Text("歌单").tag("playlist")
                     }
@@ -88,6 +97,18 @@ struct SmalltifyCatalog: View {
                     Button("搜索") { model.search() }.disabled(!model.signedIn)
                 }
                 .padding(.horizontal)
+            }
+
+            if model.artist != nil {
+                Picker("作品类型", selection: $model.artistGroup) {
+                    Text("专辑与单曲").tag("album,single")
+                    Text("专辑").tag("album")
+                    Text("单曲 / EP").tag("single")
+                    Text("参与作品").tag("appears_on")
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .onChange(of: model.artistGroup) { model.loadArtistAlbums() }
             }
 
             if !model.signedIn {
@@ -99,11 +120,11 @@ struct SmalltifyCatalog: View {
                     Button("打开设置") { model.navigate("settings") }
                 }
             } else if model.items.isEmpty, !model.loading {
-                ContentUnavailableView("暂无曲目", systemImage: "music.note", description: Text(model.selected == "search" ? "输入关键词后按回车搜索。" : "可刷新重试；如果上方有错误，请先处理连接或权限问题。"))
+                ContentUnavailableView(model.artist != nil ? "暂无作品" : "暂无曲目", systemImage: "music.note", description: Text(model.artist != nil ? "该分类暂无可显示的作品；可切换分类或刷新。" : (model.selected == "search" ? "输入关键词后按回车搜索。" : "可刷新重试；如果上方有错误，请先处理连接或权限问题。")))
             } else {
                 List {
                     ForEach(model.items.enumerated(), id: \.offset) { _, item in
-                        SmalltifyCatalogRow(item: item, player: model.player) { model.openCollection(item) }
+                        SmalltifyCatalogRow(item: item, player: model.player, open: { model.openCollection(item) }, openArtist: model.openArtist)
                     }
                     if model.nextPage != nil {
                         HStack {
@@ -131,6 +152,7 @@ struct SmalltifyCatalogRow: View {
     let item: CatalogItem
     let player: SoloistController
     let open: () -> Void
+    let openArtist: (CatalogArtist) -> Void
 
     var body: some View {
         HStack {
@@ -142,13 +164,29 @@ struct SmalltifyCatalogRow: View {
             }
             .frame(width: 40, height: 40).clipShape(.rect(cornerRadius: 5))
             VStack(alignment: .leading) {
-                Text(item.name).lineLimit(1)
-                Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if item.kind == "artist" {
+                    Button(item.name) { openArtist(CatalogArtist(uri: item.uri, name: item.name, imageURL: item.imageURL)) }
+                        .buttonStyle(.plain).foregroundStyle(.tint).lineLimit(1)
+                } else if item.isCollection {
+                    Button(item.name, action: open)
+                        .buttonStyle(.plain).lineLimit(1)
+                        .help("查看曲目")
+                } else {
+                    Text(item.name).lineLimit(1)
+                }
+                ArtistLinks(artists: item.artists, fallback: item.subtitle, open: openArtist).font(.caption)
             }
             Spacer()
             if item.isCollection { Button("查看曲目", systemImage: "list.bullet", action: open).labelStyle(.iconOnly) }
-            Button("播放", systemImage: "play.fill") { player.control("play", uri: item.uri) }
-                .labelStyle(.iconOnly).disabled(!player.canControl)
+            if item.kind == "artist" {
+                Button("查看作品", systemImage: "chevron.right") {
+                    openArtist(CatalogArtist(uri: item.uri, name: item.name, imageURL: item.imageURL))
+                }
+                .labelStyle(.iconOnly)
+            } else {
+                Button("播放", systemImage: "play.fill") { player.control("play", uri: item.uri) }
+                    .labelStyle(.iconOnly).disabled(!player.canControl)
+            }
             if item.kind == "track" {
                 Button("加入队列", systemImage: "text.line.last.and.arrowtriangle.forward") { player.control("add_to_queue", uri: item.uri) }
                     .labelStyle(.iconOnly).disabled(!player.canControl)

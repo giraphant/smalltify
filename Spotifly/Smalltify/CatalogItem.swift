@@ -7,6 +7,7 @@ nonisolated struct CatalogItem: Identifiable, Sendable, Equatable {
     let kind: String
     let durationMS: Double
     let imageURL: URL?
+    var artists: [CatalogArtist] = []
     var id: String { uri }
     var spotifyID: String { uri.split(separator: ":").last.map(String.init) ?? "" }
     var isCollection: Bool { kind == "album" || kind == "playlist" }
@@ -21,18 +22,21 @@ nonisolated struct CatalogItem: Identifiable, Sendable, Equatable {
     }
 
     static func parse(_ object: [String: Any]) -> Self? {
-        guard let uri = object["uri"] as? String, validURI(uri),
+        guard let uri = object["uri"] as? String, (validURI(uri) || CatalogArtist.validURI(uri)),
               let name = object["name"] as? String else { return nil }
         let kind = object["type"] as? String ?? String(uri.split(separator: ":")[1])
-        let artists = (object["artists"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+        let artistObjects = object["artists"] as? [[String: Any]] ?? []
+        let artistNames = artistObjects.compactMap { $0["name"] as? String }
+        var seenArtists = Set<String>()
+        let artists = artistObjects.compactMap(CatalogArtist.parse).filter { seenArtists.insert($0.uri).inserted }
         let album = object["album"] as? [String: Any]
         let owner = object["owner"] as? [String: Any]
         let images = (object["images"] ?? album?["images"]) as? [[String: Any]] ?? []
         let image = images.last?["url"] as? String
         let imageURL = image.flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
         return Self(uri: uri, name: name,
-                    subtitle: artists.isEmpty ? (owner?["display_name"] as? String ?? "") : artists.joined(separator: " · "),
-                    kind: kind, durationMS: object["duration_ms"] as? Double ?? 0, imageURL: imageURL)
+                    subtitle: artistNames.isEmpty ? (owner?["display_name"] as? String ?? (kind == "artist" ? "歌手" : "")) : artistNames.joined(separator: " · "),
+                    kind: kind, durationMS: object["duration_ms"] as? Double ?? 0, imageURL: imageURL, artists: artists)
     }
 }
 

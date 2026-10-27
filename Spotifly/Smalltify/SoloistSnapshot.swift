@@ -8,6 +8,7 @@ nonisolated struct SoloistSnapshot: Sendable {
     var uri = ""
     var title = "尚未播放"
     var artist = ""
+    var artists: [CatalogArtist] = []
     var coverURL: URL?
     var durationMS = 0.0
     var positionMS = 0.0
@@ -48,7 +49,11 @@ nonisolated struct SoloistSnapshot: Sendable {
             }.first
             uri = entity["uri"] as? String ?? ""
             title = (decorations["identity"] as? [String: Any])?["name"] as? String ?? "尚未播放"
-            artist = (decorations["creators"] as? [[String: Any]] ?? []).compactMap {
+            let creators = decorations["creators"] as? [[String: Any]] ?? []
+            var seenArtists = Set<String>()
+            artists = creators.compactMap { $0["entity"] as? [String: Any] }
+                .compactMap(CatalogArtist.fromSoloist).filter { seenArtists.insert($0.uri).inserted }
+            artist = creators.compactMap {
                 let creator = $0["entity"] as? [String: Any]
                 let info = creator?["decorations"] as? [String: Any]
                 return (info?["identity"] as? [String: Any])?["name"] as? String

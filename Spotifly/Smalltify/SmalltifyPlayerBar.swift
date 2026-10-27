@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SmalltifyPlayerBar: View {
     @Bindable var player: SoloistController
+    let openArtist: (CatalogArtist) -> Void
     @State private var seeking: Double?
     @State private var volume: Double?
 
@@ -22,7 +23,8 @@ struct SmalltifyPlayerBar: View {
                 .accessibilityLabel("当前歌曲封面")
                 VStack(alignment: .leading) {
                     Text(player.snapshot.title).lineLimit(1).bold()
-                    Text(player.snapshot.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    ArtistLinks(artists: player.snapshot.artists, fallback: player.snapshot.artist, open: openArtist)
+                        .font(.caption)
                 }
                 .frame(minWidth: 140, maxWidth: 260, alignment: .leading)
                 Spacer()
