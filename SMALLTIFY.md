@@ -39,6 +39,14 @@
 - Apple 公证通过，票据已附加；安装后的 `codesign --verify --deep --strict` 和 `spctl --assess` 均通过。
 - 从 `/Applications/Smalltify.app/Contents/MacOS/Spotifly` 启动并确认进程运行。
 - 用当前 KeychainManager 源码、隔离服务名称和假凭据，在同样沙盒权限的签名测试程序中验证保存、读取、删除，全部通过。
-- Spotify 网页授权和实际播放尚待本人完成；未自动继承或使用任何账号凭据。
+- 随后用户完成登录：界面报告首页 HTTP 403 `Client/request not allowed`，用户确认搜索、歌单也失败。当前安装版本不能视为功能验收通过；播放尚未验证。
 
 本机已用现有公证配置完成首次安装。`make build` 只负责编译和签名；每次改变二进制后，旧公证票据不再适用，需要重新公证才能得到同样的 Gatekeeper 验证结果。
+
+## 当前阻塞：Spotify 数据接口拒绝请求
+
+2026-10-27，用户登录后：首页返回 HTTP 403 `Client/request not allowed`，搜索、歌单也失败。当前 fork 未修改 Spotify Client ID、授权流程或 PartnerAPI 请求逻辑；它们沿用已审查的上游基线。
+
+另一个项目维护者在 [Wavekeep v0.3.0 发布说明](https://github.com/PierrunoYT/Wavekeep/releases/tag/v0.3.0) 记录：2026-10-23 Pathfinder 返回同样的拒绝。结合本项目源码，初步判断为内部接口对该请求/客户端的访问限制，尚未通过受控请求实验确定具体触发条件。
+
+后续可评估用本人注册的 Client ID + PKCE 接入官方 Web API，恢复其支持的搜索和文库能力。此方案需要新的授权与数据适配，并不能保证恢复内部首页推荐或所有播放功能。不要通过更换随机 Client ID、拷贝浏览器令牌或无限重试规避拒绝。
