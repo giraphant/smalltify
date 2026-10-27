@@ -22,7 +22,7 @@ struct DetailHero<Artwork: View, Metadata: View, Actions: View>: View {
 private struct DetailHeroLayout: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 2 else { return .zero }
-        let width = proposal.width ?? 540
+        let width = proposal.width ?? 300
         let art = subviews[0].sizeThatFits(.unspecified)
         let stacked = width < 520
         let text = subviews[1].sizeThatFits(.init(width: stacked ? width : max(0, width - art.width - 22), height: nil))

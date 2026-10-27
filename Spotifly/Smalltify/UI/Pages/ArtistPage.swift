@@ -37,7 +37,7 @@ struct ArtistPage: View {
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
-                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(maxWidth: 360)
                         LoadedContent(loader: loader, emptyTitle: "这里还没有作品") {
                             CatalogGrid(items: loader.items) { group.detail($0) }
                             LoaderFooter(loader: loader, pageSize: 10)
