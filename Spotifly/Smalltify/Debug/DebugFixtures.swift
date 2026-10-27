@@ -29,6 +29,9 @@
         }
 
         @MainActor static func makeModel() -> SmalltifyModel {
+            // Snapshot runs launch over and over while a page is checked: keep them out of the
+            // Dock and the app switcher, so they do not catch the user's eye every few seconds.
+            if environment["SMALLTIFY_SNAPSHOT"] != nil { NSApplication.shared.setActivationPolicy(.accessory) }
             URLProtocol.registerClass(FixtureURLProtocol.self)
             let config = URLSessionConfiguration.ephemeral
             config.protocolClasses = [FixtureURLProtocol.self]
@@ -146,5 +149,17 @@
         }
 
         override func stopLoading() {}
+    }
+
+    extension View {
+        /// Fixture mode's SMALLTIFY_DARK, set on every scene: NSApp.appearance alone left some
+        /// SwiftUI text, such as the inspector's, drawn for light mode.
+        func fixtureAppearance() -> some View {
+            preferredColorScheme(DebugFixtures.isEnabled && DebugFixtures.environment["SMALLTIFY_DARK"] == "1" ? .dark : nil)
+        }
+    }
+#else
+    extension View {
+        func fixtureAppearance() -> some View { self }
     }
 #endif

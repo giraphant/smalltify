@@ -22,6 +22,7 @@ private struct BannerRow: View {
     let tone: Notices.Banner.Tone
     let actions: [Notices.Action]
     let dismiss: () -> Void
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HStack(spacing: 10) {
@@ -31,7 +32,10 @@ private struct BannerRow: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             ForEach(actions) { action in
-                Button(action.title) { action.perform() }
+                Button(action.title) {
+                    if action.opensSettings { openSettings() }
+                    action.perform()
+                }
             }
             Button("关闭", systemImage: "xmark", action: dismiss)
                 .labelStyle(.iconOnly)

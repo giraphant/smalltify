@@ -7,7 +7,13 @@ import Observation
     struct Action: Identifiable {
         let id = UUID()
         let title: String
+        /// Opens the settings window, which only a view can do; `perform` runs too.
+        var opensSettings = false
         let perform: @MainActor () -> Void
+
+        static func openSettings(_ title: String = "打开设置") -> Action {
+            Action(title: title, opensSettings: true) {}
+        }
     }
 
     struct Banner: Identifiable {

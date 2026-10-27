@@ -214,8 +214,27 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
 
     // MARK: - Playback
 
+    /// Whether a play command can go anywhere: a remote device under Connect, or the local
+    /// player once it has a key, runs and is paired. Otherwise the banner says what is missing.
+    func ensurePlayerReady() -> Bool {
+        if connect.usesRemote { return true }
+        let message: String? = if !hasPlayerKey {
+            "需要先在设置里填写 Soloist API Key。"
+        } else if !player.running {
+            "播放器没有运行，请在设置里启动。"
+        } else if !player.snapshot.loggedIn {
+            "等待配对：在官方 Spotify 的设备列表里选择「Smalltify」，只需一次。"
+        } else {
+            nil
+        }
+        guard let message else { return true }
+        notices.show(.init(message: message, tone: .warning, actions: [.openSettings()]))
+        return false
+    }
+
     /// Plays a whole track, album, playlist or episode by uri.
     func play(uri: String) {
+        guard ensurePlayerReady() else { return }
         player.control("play", uri: uri)
     }
 

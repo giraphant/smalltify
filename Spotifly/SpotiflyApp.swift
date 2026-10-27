@@ -89,6 +89,7 @@ struct SpotiflyApp: App {
         Window("Smalltify", id: "main") {
             if let model {
                 SmalltifyWorkspace(model: model)
+                    .fixtureAppearance()
                     .task {
                         appDelegate.soloist = model.player
                         await model.start()
@@ -102,6 +103,7 @@ struct SpotiflyApp: App {
             if let model {
                 MiniPlayerWindow(model: model)
                     .environment(model)
+                    .fixtureAppearance()
             }
         }
         .windowResizability(.contentSize)
@@ -111,6 +113,7 @@ struct SpotiflyApp: App {
             if let model {
                 SettingsWindow(model: model)
                     .environment(model)
+                    .fixtureAppearance()
             }
         }
     }
