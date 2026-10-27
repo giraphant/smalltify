@@ -59,11 +59,11 @@ struct ToastView: View {
                         .foregroundStyle(notices.toastIsError ? Color.red : Color.accentColor)
                 }
                 .font(.callout)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .glassEffect(.regular, in: .capsule)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .id(toast)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .id(toast)
             }
         }
         .padding(.bottom, 16)
