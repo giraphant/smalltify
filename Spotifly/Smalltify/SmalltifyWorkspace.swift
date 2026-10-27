@@ -119,6 +119,14 @@ struct SmalltifyCatalog: View {
                 } actions: {
                     Button("打开设置") { model.navigate("settings") }
                 }
+            } else if model.catalogError != nil, model.items.isEmpty, !model.loading {
+                ContentUnavailableView {
+                    Label("加载失败", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text("暂时无法读取作品，请查看上方错误信息后重试。")
+                } actions: {
+                    Button("重试") { model.refresh() }
+                }
             } else if model.items.isEmpty, !model.loading {
                 ContentUnavailableView(model.artist != nil ? "暂无作品" : "暂无曲目", systemImage: "music.note", description: Text(model.artist != nil ? "该分类暂无可显示的作品；可切换分类或刷新。" : (model.selected == "search" ? "输入关键词后按回车搜索。" : "可刷新重试；如果上方有错误，请先处理连接或权限问题。")))
             } else {

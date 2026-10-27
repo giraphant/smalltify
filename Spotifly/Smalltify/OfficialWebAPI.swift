@@ -89,7 +89,14 @@ actor OfficialWebAPI {
                 let delay = max(1, Double(http.value(forHTTPHeaderField: "Retry-After") ?? "30") ?? 30)
                 retryAfter = Date().addingTimeInterval(delay)
                 throw SmalltifyError("Spotify 请求限流，请 \(Int(delay)) 秒后重试。")
-            default: throw SmalltifyError("Spotify 请求失败（HTTP \(http.statusCode)）。")
+            default:
+                let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                let details = object?["error"] as? [String: Any]
+                let message = (details?["message"] as? String ?? "")
+                    .replacing(token, with: "[redacted]")
+                    .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+                let suffix = message.isEmpty ? "" : " " + String(message.prefix(240))
+                throw SmalltifyError("Spotify 请求失败（HTTP \(http.statusCode)）。" + suffix)
             }
         }
         throw SmalltifyError("请重新登录 Spotify。")

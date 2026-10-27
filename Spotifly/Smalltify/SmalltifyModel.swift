@@ -6,12 +6,14 @@ import Observation
     let player = SoloistController()
     let playlistShortcuts = PlaylistShortcuts()
     let api: OfficialWebAPI
+    let artistCatalog: ArtistCatalogLoader
     var clientID: String
     var signedIn: Bool
     var authorizing = false
     var hasPlayerKey: Bool
     var cacheMB: Int
     var error: String?
+    var catalogError: String?
     var notice: String?
     var items: [CatalogItem] = []
     var nextPage: URL?
@@ -25,6 +27,9 @@ import Observation
     var artist: CatalogArtist?
     var artistGroup = "album,single"
     private(set) var history: [CatalogDestination] = []
+    private var playbackObservation: Task<Void, Never>?
+    private var prefetchTask: Task<Void, Never>?
+    private var prefetchArtistURI: String?
     private var started = false
     private var authTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
@@ -33,9 +38,11 @@ import Observation
     private var loadedSearchType: String?
     private var loadedArtistID: String?
 
-    init(restoreCredentials: Bool = true) {
+    init(restoreCredentials: Bool = true, api suppliedAPI: OfficialWebAPI? = nil) {
         let grant = restoreCredentials ? OfficialGrant.load() : nil
-        api = OfficialWebAPI(grant: grant)
+        let api = suppliedAPI ?? OfficialWebAPI(grant: grant)
+        self.api = api
+        artistCatalog = ArtistCatalogLoader(api: api)
         signedIn = grant != nil
         clientID = grant?.clientID ?? UserDefaults.standard.string(forKey: "smalltify.clientID") ?? ""
         hasPlayerKey = restoreCredentials && SmalltifySecrets.load("soloist-key") != nil
@@ -47,8 +54,36 @@ import Observation
     func start() async {
         guard !started else { return }
         started = true
+        observePlaybackForPrefetch()
         if signedIn { navigate(selected) }
         if hasPlayerKey { await player.start(cacheMB: cacheMB) }
+    }
+
+    isolated deinit {
+        playbackObservation?.cancel()
+        prefetchTask?.cancel()
+    }
+
+    private func observePlaybackForPrefetch() {
+        playbackObservation = Task { [weak self, player] in
+            let changes = Observations { [weak self] in
+                (player.snapshot.artists.first, player.snapshot.status, self?.signedIn ?? false)
+            }
+            for await (artist, status, authorized) in changes {
+                guard let self, !Task.isCancelled else { return }
+                let candidate = authorized && status == "playing" ? artist : nil
+                guard candidate?.uri != prefetchArtistURI else { continue }
+                prefetchTask?.cancel()
+                prefetchArtistURI = candidate?.uri
+                guard let candidate else { continue }
+                prefetchTask = Task { [artistCatalog] in
+                    do {
+                        try await Task.sleep(for: .milliseconds(800))
+                        await artistCatalog.prefetch(candidate)
+                    } catch {}
+                }
+            }
+        }
     }
 
     func signIn() {
@@ -83,6 +118,9 @@ import Observation
                     "redirect_uri": "http://127.0.0.1:\(port)/login", "code_verifier": verifier,
                 ], session: session)
                 try Task.checkCancellation()
+                prefetchTask?.cancel()
+                prefetchArtistURI = nil
+                await artistCatalog.clear()
                 try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens))
                 signedIn = true
                 clientID = id
@@ -103,6 +141,9 @@ import Observation
     func signOut() {
         authTask?.cancel()
         loadTask?.cancel()
+        prefetchTask?.cancel()
+        prefetchArtistURI = nil
+        catalogError = nil
         loadGeneration = UUID()
         items = []
         nextPage = nil
@@ -110,6 +151,7 @@ import Observation
         Task {
             do {
                 try await api.replaceGrant(nil)
+                await artistCatalog.clear()
                 signedIn = false
                 notice = "文库已退出；Soloist 配对独立保留。"
             } catch { self.error = error.localizedDescription }
@@ -141,6 +183,7 @@ import Observation
         loadTask?.cancel()
         loadGeneration = UUID()
         loading = false
+        catalogError = nil
         if section == "settings" { return }
         do {
             switch section {
@@ -159,6 +202,7 @@ import Observation
         collection = nil
         artist = nil
         title = "搜索"
+        catalogError = nil
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
             loadTask?.cancel(); loadGeneration = UUID(); items = []; nextPage = nil; loading = false
@@ -211,9 +255,7 @@ import Observation
     func loadArtistAlbums() {
         guard let artist else { return }
         do {
-            let url = try OfficialWebAPI.apiURL(path: "/artists/\(artist.spotifyID)/albums", query: [
-                .init(name: "include_groups", value: artistGroup), .init(name: "limit", value: "50"),
-            ])
+            let url = try ArtistCatalogLoader.albumsURL(artistID: artist.spotifyID, group: artistGroup)
             load(url, artistID: artist.spotifyID)
         } catch { self.error = error.localizedDescription }
     }
@@ -228,14 +270,14 @@ import Observation
     }
 
     func refresh() {
-        if let loadedURL { load(loadedURL, searchType: loadedSearchType, artistID: loadedArtistID) }
+        if let loadedURL { load(loadedURL, searchType: loadedSearchType, artistID: loadedArtistID, refresh: true) }
     }
 
     func loadMore() {
-        if let nextPage, !loading { load(nextPage, searchType: loadedSearchType, append: true) }
+        if let nextPage, !loading { load(nextPage, searchType: loadedSearchType, append: true, artistID: loadedArtistID) }
     }
 
-    private func load(_ url: URL, searchType: String? = nil, append: Bool = false, artistID: String? = nil) {
+    private func load(_ url: URL, searchType: String? = nil, append: Bool = false, artistID: String? = nil, refresh: Bool = false) {
         loadTask?.cancel()
         let generation = UUID()
         loadGeneration = generation
@@ -245,12 +287,17 @@ import Observation
         guard signedIn else { loading = false; return }
         loading = true
         error = nil
+        catalogError = nil
         loadTask = Task {
             defer { if generation == loadGeneration { loading = false } }
             do {
-                async let profile = loadArtistProfile(artistID)
-                let data = try await api.get(url)
-                let page = try CatalogPage.parse(data, searchType: searchType)
+                async let profile = loadArtistProfile(artistID, refresh: refresh)
+                let page: CatalogPage
+                if artistID != nil {
+                    page = try await artistCatalog.albums(from: url, refresh: refresh)
+                } else {
+                    page = try CatalogPage.parse(try await api.get(url), searchType: searchType)
+                }
                 let artistProfile = await profile
                 try Task.checkCancellation()
                 guard generation == loadGeneration else { return }
@@ -261,18 +308,17 @@ import Observation
                     title = artistProfile.name
                 }
             } catch {
-                if generation == loadGeneration, !Task.isCancelled { self.error = error.localizedDescription }
+                if generation == loadGeneration, !Task.isCancelled {
+                    self.error = error.localizedDescription
+                    catalogError = error.localizedDescription
+                }
             }
         }
     }
 
-    private func loadArtistProfile(_ id: String?) async -> CatalogArtist? {
+    private func loadArtistProfile(_ id: String?, refresh: Bool) async -> CatalogArtist? {
         guard let id else { return nil }
-        do {
-            let data = try await api.get(OfficialWebAPI.apiURL(path: "/artists/\(id)"))
-            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-            return CatalogArtist.parse(object)
-        } catch { return nil }
+        return await artistCatalog.profile(artistID: id, refresh: refresh)
     }
 
     func playLink() {

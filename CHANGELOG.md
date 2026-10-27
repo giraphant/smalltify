@@ -8,9 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- 修正歌手作品接口每页上限为 10，避免 HTTP 400；显示 API 返回的具体错误，区分加载失败和空列表。Build 14。
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
+- 播放时静默预取当前主歌手的前三页作品及资料；浏览复用短时内存缓存，合并并发请求，翻页失败保留已加载内容，退出账号清空缓存。
 - 歌手作品页：支持歌手搜索、从歌曲或播放栏进入歌手、头像、专辑／单曲／参与作品筛选及分页；保留多位合作歌手和页面返回路径。Build 13。
 - 播放栏显示 Soloist 提供的当前歌曲封面；切歌时清除旧封面，缺少图片时显示占位图。
 - 常用歌单设置：按名称保存 Spotify 歌单链接，在本机持久保留，支持直接播放、同链接改名和删除入口；保存原始 URI，保留个性化歌单的自动更新。Build 12。
