@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- 窗口较窄时打开「正在播放」侧栏会让 AppKit 布局无限重算并崩溃：侧栏打开时窗口最小宽度提高到 1120pt，首页并排区块改按滚动视图宽度切换，卡片横排不再吸附滚动。
+- Build 17：修复启动后不久或打开「正在播放」时的崩溃（AppKit 的 Update Constraints in Window 次数超限）。窗口本身不再设最小尺寸，改由侧边栏、页面列、「正在播放」各自固定的最小宽度和播放栏决定，页面内容不再影响列宽；首页「歌曲／歌手」是否并排改在一次布局内按给出的宽度决定，播放栏始终显示时间和音量，不再依据测得的宽度切换。窗口太窄时打开「正在播放」会把窗口加宽。卡片横排不再吸附滚动。调试构建新增 `SMALLTIFY_OPEN=stress`（快速切页、改窗口大小、开关侧栏和横幅）与 `sweep`（逐 2pt 拖动窗口宽度）用来压测布局。
 - 歌单简介去除 HTML 并解码实体；较早的刷新请求不会覆盖较新的页面数据。
 - 修正歌手作品接口每页上限为 10，避免 HTTP 400；显示 API 返回的具体错误，区分加载失败和空列表。Build 14。
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.

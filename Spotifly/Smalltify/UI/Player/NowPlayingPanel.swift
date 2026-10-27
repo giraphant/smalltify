@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NowPlayingPanel: View {
+    /// The inspector column's width: the 268pt cover and text column plus the padding.
+    static let width: CGFloat = 300
     @Environment(SmalltifyModel.self) private var model
 
     var body: some View {
@@ -63,7 +65,7 @@ struct NowPlayingPanel: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 300, idealWidth: 300, maxWidth: .infinity)
+        .frame(minWidth: Self.width, maxWidth: .infinity)
     }
 }
 

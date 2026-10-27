@@ -93,10 +93,6 @@ actor DiscoverRecentCatalog {
 struct StartPage: View {
     @Environment(SmalltifyModel.self) private var model
     @State private var range = DiscoverTimeRange.short
-    /// Whether 歌曲 and 歌手 fit side by side. Measured on the scroll view, whose width its parent
-    /// sets: a ViewThatFits inside it flipped as the scroller came and went, until AppKit's
-    /// constraint passes overflowed with the inspector open.
-    @State private var wide = true
 
     var body: some View {
         Group {
@@ -117,24 +113,14 @@ struct StartPage: View {
                                 .labelsHidden()
                                 .frame(width: 220)
                             }
-                            if wide {
-                                HStack(alignment: .top, spacing: 28) {
-                                    DiscoverTopSection(range: range, type: "tracks")
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    DiscoverTopSection(range: range, type: "artists")
-                                        .frame(width: 360, alignment: .leading)
-                                }
-                            } else {
-                                VStack(alignment: .leading, spacing: 24) {
-                                    DiscoverTopSection(range: range, type: "tracks")
-                                    DiscoverTopSection(range: range, type: "artists")
-                                }
+                            DiscoverTopLayout {
+                                DiscoverTopSection(range: range, type: "tracks")
+                                DiscoverTopSection(range: range, type: "artists")
                             }
                         }
                     }
                     .padding(24)
                 }
-                .onGeometryChange(for: Bool.self) { $0.size.width >= 780 } action: { wide = $0 }
             }
         }
         .navigationTitle("首页")
@@ -146,6 +132,45 @@ struct StartPage: View {
                 }
             #endif
         }
+    }
+}
+
+/// 歌曲 beside 歌手 when the page is wide enough, else one above the other. Decided from the
+/// proposed width within one layout pass: a state set from the measured width changed the page's
+/// minimum width, which resized the split view's column and flipped the state back, until AppKit
+/// threw after too many constraint passes.
+private struct DiscoverTopLayout: Layout {
+    var sideBySideFrom: CGFloat = 732
+    var trailingWidth: CGFloat = 360
+    var columnSpacing: CGFloat = 28
+    var rowSpacing: CGFloat = 24
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let width = proposal.width ?? sideBySideFrom
+        let height = frames(width: width, subviews: subviews).map(\.maxY).max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        for (subview, frame) in zip(subviews, frames(width: bounds.width, subviews: subviews)) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                          proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func frames(width: CGFloat, subviews: Subviews) -> [CGRect] {
+        guard subviews.count == 2 else { return [] }
+        if width >= sideBySideFrom {
+            let leading = width - columnSpacing - trailingWidth
+            let sizes = [subviews[0].sizeThatFits(.init(width: leading, height: nil)),
+                         subviews[1].sizeThatFits(.init(width: trailingWidth, height: nil))]
+            return [CGRect(x: 0, y: 0, width: leading, height: sizes[0].height),
+                    CGRect(x: leading + columnSpacing, y: 0, width: trailingWidth, height: sizes[1].height)]
+        }
+        let first = subviews[0].sizeThatFits(.init(width: width, height: nil)).height
+        let second = subviews[1].sizeThatFits(.init(width: width, height: nil)).height
+        return [CGRect(x: 0, y: 0, width: width, height: first),
+                CGRect(x: 0, y: first + rowSpacing, width: width, height: second)]
     }
 }
 

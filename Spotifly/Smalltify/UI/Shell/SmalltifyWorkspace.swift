@@ -16,13 +16,16 @@ struct SmalltifyWorkspace: View {
             } detail: {
                 DestinationView(route: model.navigator.current)
                     .id(model.navigator.current)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .safeAreaInset(edge: .top, spacing: 0) { BannerView(model: model) }
                     .overlay(alignment: .bottom) { ToastView(notices: model.notices) }
+                    // Both bounds set, so the column's minimum is this frame's, never the page's: a
+                    // minimum that followed the content changed as the column resized, the split view
+                    // resized the column again, and AppKit threw after too many constraint passes.
+                    .frame(minWidth: 380, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     .toolbar { toolbar }
                     .inspector(isPresented: $model.inspectorPresented) {
                         NowPlayingPanel()
-                            .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
+                            .inspectorColumnWidth(min: NowPlayingPanel.width, ideal: NowPlayingPanel.width, max: 380)
                     }
             }
             .searchable(text: $searchText, placement: .toolbar, prompt: "搜索，回车确认")
@@ -41,10 +44,9 @@ struct SmalltifyWorkspace: View {
         .environment(\.openURL, OpenURLAction { url in
             model.handle(url) ? .handled : .systemAction
         })
-        // The inspector takes its column from the page. Below about 560pt the page's toolbar and
-        // content could not settle, and AppKit threw after too many constraint passes, so the
-        // window grows instead while 正在播放 is open.
-        .frame(minWidth: model.inspectorPresented ? 1120 : 900, minHeight: 600)
+        // No frame here: the window's minimum is the columns' and the player bar's. A minimum set
+        // on this view, fixed or not, fought the split view's own whenever 正在播放 was open in a
+        // window under about 1120pt, and AppKit threw after too many constraint passes.
         #if DEBUG
             .task {
                 if DebugFixtures.opens("paste") { showingPasteLink = true }
@@ -53,6 +55,8 @@ struct SmalltifyWorkspace: View {
                     try? await Task.sleep(for: .seconds(1.5))
                     model.inspectorPresented = true
                 }
+                if DebugFixtures.opens("stress") { await DebugFixtures.stress(model) }
+                if DebugFixtures.opens("sweep") { await DebugFixtures.sweep(model) }
             }
         #endif
     }

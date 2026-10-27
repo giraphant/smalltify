@@ -3,7 +3,6 @@ import SwiftUI
 struct PlayerBar: View {
     @Environment(SmalltifyModel.self) private var model
     @Environment(\.openWindow) private var openWindow
-    @State private var width: CGFloat = 1000
 
     var body: some View {
         HStack(spacing: 12) {
@@ -17,7 +16,10 @@ struct PlayerBar: View {
             }
             .frame(minWidth: 100, idealWidth: 210, maxWidth: 250, alignment: .leading)
             PlaybackButtons(player: model.player)
-            PlaybackProgress(player: model.player, showsTimes: width >= 640)
+            // Always with the times and the volume: the bar's minimum width is part of the
+            // window's, and hiding them by a measured width changed that minimum as it resized.
+            // Both bounds set, so the times' changing widths do not reach the minimum either.
+            PlaybackProgress(player: model.player)
                 .frame(minWidth: 50, maxWidth: .infinity)
             DeviceChip()
             Button("正在播放与接下来播放", systemImage: "list.bullet") { model.inspectorPresented.toggle() }
@@ -25,14 +27,11 @@ struct PlayerBar: View {
                 .buttonStyle(.borderless)
                 .padding(6)
                 .background(model.inspectorPresented ? Color.primary.opacity(0.08) : .clear, in: .circle)
-            if width >= 680 {
-                PlaybackVolume(player: model.player)
-            }
+            PlaybackVolume(player: model.player)
         }
         .padding(.horizontal, 16)
         .frame(height: 64)
         .background(.bar)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .task {
             #if DEBUG
                 if DebugFixtures.opens("mini") { openWindow(id: MiniPlayerWindow.id) }

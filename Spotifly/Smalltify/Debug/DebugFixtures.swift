@@ -11,14 +11,15 @@
     /// - `SMALLTIFY_ROUTE` picks the first page: `home`, `liked`, `playlists`, `albums`, `artists`,
     ///   `search:<query>`, `album:<name>`, `playlist:<name>`, `artist:<name>` (names from `FixtureData`).
     /// - `SMALLTIFY_DARK=1` uses the dark appearance; `SMALLTIFY_INSPECTOR=1` opens 正在播放.
-    /// - `SMALLTIFY_WINDOW=<width>x<height>` sizes the main window's content (minimum 900×600; with
-    ///   the inspector open, 900 wide leaves a narrow page).
+    /// - `SMALLTIFY_WINDOW=<width>x<height>` sizes the main window's content, down to the minimum
+    ///   its columns and player bar allow.
     /// - `SMALLTIFY_SNAPSHOT=<path.png>` writes every visible window after `SMALLTIFY_SNAPSHOT_DELAY`
     ///   seconds (default 3) and quits: the main window to the path, others beside it.
     /// - `SMALLTIFY_OPEN` is free for pages and panels to read, to open a popover or a window
     ///   (`DebugFixtures.opens("devices")`) so the snapshot shows it. `signed-out` starts signed out;
     ///   `paste`, `shortcut` and `settings` open the paste-link popover, the add-shortcut sheet and
-    ///   the settings window; `inspector-later` opens 正在播放 after launch, as a click would.
+    ///   the settings window; `inspector-later` opens 正在播放 after launch, as a click would;
+    ///   `stress` runs `stress(_:)` and `sweep` runs `sweep(_:)`.
     enum DebugFixtures {
         static let environment = ProcessInfo.processInfo.environment
         static var isEnabled: Bool { environment["SMALLTIFY_FIXTURES"] == "1" }
@@ -83,6 +84,61 @@
             }
         }
 
+        /// One of each kind of page, from the fixtures.
+        static var everyPage: [Destination] {
+            ["home", "liked", "playlists", "albums", "artists", "search:潮汐", "album:潮汐电台",
+             "playlist:海边的周末", "artist:马洛·韦尔"].compactMap(destination)
+        }
+
+        /// What a session does over a while, done quickly: every step goes to the next page and
+        /// resizes the window, and some open or close 正在播放, show or clear a banner, or show a
+        /// toast. A layout that cannot settle under any of them ends the run in AppKit's
+        /// constraint-pass exception, so the exit status is the result.
+        @MainActor static func stress(_ model: SmalltifyModel) async {
+            let routes = everyPage
+            let widths: [CGFloat] = [760, 820, 900, 1000, 1010, 1060, 1120, 1280, 1440]
+            for step in 0... {
+                try? await Task.sleep(for: .milliseconds(300))
+                if Task.isCancelled { return }
+                model.navigator.go(routes[step % routes.count])
+                // Every page at every width, first with 正在播放 closed and then open.
+                let width = widths[(step + step / routes.count) % widths.count]
+                NSApp.windows.first { $0.identifier?.rawValue.contains("main") == true }?
+                    .setContentSize(CGSize(width: width, height: step % 2 == 0 ? 700 : 820))
+                model.inspectorPresented = (step / (routes.count * widths.count)) % 2 == 1
+                if step % 4 == 0 {
+                    if model.notices.banner == nil {
+                        model.notices.show(.init(message: "网络连接已断开，正在重试。", tone: .warning, actions: [.openSettings()]))
+                    } else {
+                        model.notices.dismissBanner()
+                    }
+                }
+                if step % 5 == 0 { model.notices.toast("已加入队列") }
+                if step % 7 == 0 { model.player.error = model.player.error == nil ? "Soloist 已断开" : nil }
+                if step % 11 == 0 { model.needsScopeUpgrade.toggle() }
+            }
+        }
+
+        /// The window dragged narrower and wider, 2pt at a time, on every page with 正在播放 closed and
+        /// then open: each width a layout switches at is passed through on the way.
+        @MainActor static func sweep(_ model: SmalltifyModel) async {
+            let widths = Array(stride(from: 1300, through: 760, by: -2)) + Array(stride(from: 760, through: 1300, by: 2))
+            for inspector in [false, true] {
+                model.inspectorPresented = inspector
+                for route in everyPage {
+                    model.navigator.go(route)
+                    print("sweep:", route.key, inspector ? "with 正在播放" : "")
+                    for width in widths {
+                        try? await Task.sleep(for: .milliseconds(8))
+                        if Task.isCancelled { return }
+                        NSApp.windows.first { $0.identifier?.rawValue.contains("main") == true }?
+                            .setContentSize(CGSize(width: CGFloat(width), height: 760))
+                    }
+                }
+            }
+            print("sweep: done")
+        }
+
         /// Prints the view tree's tables and their row counts, for checking what a snapshot misses.
         @MainActor private static func dump(_ view: NSView, depth: Int) {
             if let table = view as? NSTableView {
@@ -91,7 +147,7 @@
             for subview in view.subviews { dump(subview, depth: depth + 1) }
         }
 
-        /// `1280x800` as a size; the main window's minimum, 900×600, still applies.
+        /// `1280x800` as a size; the main window's minimum still applies.
         static func windowSize(_ text: String) -> CGSize? {
             let parts = text.lowercased().split(separator: "x").compactMap { Double($0) }
             return parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : nil

@@ -2,16 +2,13 @@ import SwiftUI
 
 struct PlaybackProgress: View {
     let player: SoloistController
-    var showsTimes = true
     @State private var seeking: Double?
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { timeline in
             let snapshot = player.displaySnapshot
             HStack(spacing: 8) {
-                if showsTimes {
-                    Text(snapshot.hasTrack ? Formatting.duration(milliseconds: seeking ?? snapshot.position(at: timeline.date)) : "--:--")
-                }
+                Text(snapshot.hasTrack ? Formatting.duration(milliseconds: seeking ?? snapshot.position(at: timeline.date)) : "--:--")
                 Slider(value: Binding(get: { seeking ?? snapshot.position(at: timeline.date) }, set: { seeking = $0 }),
                        in: 0 ... max(1, snapshot.durationMS)) { editing in
                     if !editing, let seeking {
@@ -22,9 +19,7 @@ struct PlaybackProgress: View {
                 .controlSize(.small)
                 .disabled(!player.canControl || !snapshot.hasTrack || snapshot.durationMS <= 0)
                 .accessibilityLabel("播放进度")
-                if showsTimes {
-                    Text(snapshot.hasTrack ? Formatting.duration(milliseconds: snapshot.durationMS) : "--:--")
-                }
+                Text(snapshot.hasTrack ? Formatting.duration(milliseconds: snapshot.durationMS) : "--:--")
             }
             .font(.caption).monospacedDigit().foregroundStyle(.secondary)
         }
