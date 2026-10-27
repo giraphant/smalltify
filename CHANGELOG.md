@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
-- 按 `design_handoff_smalltify/` 设计重做界面：侧边栏（首页、文库四项、常用歌单、连接状态与账号）、带前进后退的导航、工具栏搜索与粘贴链接、页面顶部唯一错误横幅和自动消失的提示。
+- Build 16：按 `design_handoff_smalltify/` 设计重做界面：侧边栏（首页、文库四项、常用歌单、连接状态与账号）、带前进后退的导航、工具栏搜索与粘贴链接、页面顶部唯一错误横幅和自动消失的提示。
 - 首页：最近播放（按播放上下文去重）、常听歌曲与歌手（4 周／6 个月／1 年）；缺少新权限时就地提示重新授权。
 - 混合搜索：一次请求取回歌曲、歌手、专辑、歌单，可切换单一类型并按 10 条分页；空结果与失败状态。
 - 文库页：喜欢的歌曲（筛选、可排序列、自动加载更多）、我的歌单、收藏专辑（可按名称／歌手／年份排序）、关注的歌手（游标分页）。
