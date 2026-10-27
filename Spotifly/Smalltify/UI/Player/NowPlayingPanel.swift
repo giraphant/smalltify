@@ -17,6 +17,7 @@ struct NowPlayingPanel: View {
                         Label("在\(device.name)上播放。远程控制，状态约每 5 秒同步一次\(device.supportsVolume ? "。" : "；此设备不允许调节音量。")",
                               systemImage: device.symbol)
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.accentColor.opacity(0.12), in: .rect(cornerRadius: 10))
@@ -56,11 +57,13 @@ struct NowPlayingPanel: View {
                     }
                     Text("队列不能排序、删除或清空；在歌曲上用「加入队列」只会加到队尾。")
                         .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(width: 268, alignment: .leading)
             }
         }
         .padding(16)
-        .frame(width: 300)
+        .frame(minWidth: 300, idealWidth: 300, maxWidth: .infinity)
     }
 }
 
