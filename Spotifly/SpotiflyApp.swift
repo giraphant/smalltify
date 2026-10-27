@@ -88,7 +88,7 @@ struct SpotiflyApp: App {
             CommandMenu("播放") {
                 Button("播放 / 暂停") {
                     guard let player = model?.player else { return }
-                    player.control(player.snapshot.status == "playing" ? "pause" : "play")
+                    player.control(player.displaySnapshot.status == "playing" ? "pause" : "play")
                 }
                 .keyboardShortcut(.space, modifiers: [])
                 .disabled(model?.player.canControl != true)

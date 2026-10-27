@@ -31,7 +31,7 @@ struct SmalltifyWorkspace: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SmalltifyPlayerBar(player: model.player, openArtist: model.openArtist)
+            SmalltifyPlayerBar(player: model.player, openArtist: model.openArtist, authorizeConnect: model.signIn)
                 .background(.bar)
         }
         .frame(minWidth: 850, minHeight: 620)

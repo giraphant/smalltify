@@ -7,6 +7,7 @@ import Observation
     let playlistShortcuts = PlaylistShortcuts()
     let api: OfficialWebAPI
     let artistCatalog: ArtistCatalogLoader
+    let connect: SpotifyConnectController
     var clientID: String
     var signedIn: Bool
     var authorizing = false
@@ -43,18 +44,22 @@ import Observation
         let api = suppliedAPI ?? OfficialWebAPI(grant: grant)
         self.api = api
         artistCatalog = ArtistCatalogLoader(api: api)
+        connect = SpotifyConnectController(api: api, authorized: grant?.connectEnabled == true)
         signedIn = grant != nil
         clientID = grant?.clientID ?? UserDefaults.standard.string(forKey: "smalltify.clientID") ?? ""
         hasPlayerKey = restoreCredentials && SmalltifySecrets.load("soloist-key") != nil
         let savedCache = UserDefaults.standard.integer(forKey: "smalltify.cacheMB")
         cacheMB = savedCache >= 100 ? min(102400, savedCache) : 2048
         if grant == nil && !hasPlayerKey { selected = "settings" }
+        player.connect = connect
+        connect.local = player
     }
 
     func start() async {
         guard !started else { return }
         started = true
         observePlaybackForPrefetch()
+        connect.start()
         if signedIn { navigate(selected) }
         if hasPlayerKey { await player.start(cacheMB: cacheMB) }
     }
@@ -67,7 +72,7 @@ import Observation
     private func observePlaybackForPrefetch() {
         playbackObservation = Task { [weak self, player] in
             let changes = Observations { [weak self] in
-                (player.snapshot.artists.first, player.snapshot.status, self?.signedIn ?? false)
+                (player.displaySnapshot.artists.first, player.displaySnapshot.status, self?.signedIn ?? false)
             }
             for await (artist, status, authorized) in changes {
                 guard let self, !Task.isCancelled else { return }
@@ -121,11 +126,12 @@ import Observation
                 prefetchTask?.cancel()
                 prefetchArtistURI = nil
                 await artistCatalog.clear()
-                try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens))
+                try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens, connectEnabled: true))
                 signedIn = true
+                connect.setAuthorized(true)
                 clientID = id
                 UserDefaults.standard.set(id, forKey: "smalltify.clientID")
-                notice = "Spotify 文库已授权。播放器仍需单独配对。"
+                notice = "Spotify 文库与 Connect 已授权。可在播放栏选择设备；本机 Soloist 配对独立保留。"
                 navigate("liked")
             } catch {
                 if !Task.isCancelled { self.error = error.localizedDescription }
@@ -144,6 +150,7 @@ import Observation
         prefetchTask?.cancel()
         prefetchArtistURI = nil
         catalogError = nil
+        connect.setAuthorized(false)
         loadGeneration = UUID()
         items = []
         nextPage = nil

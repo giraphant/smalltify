@@ -8,7 +8,7 @@ struct SmalltifySettings: View {
     var body: some View {
         Form {
             PlaylistShortcutsSection(shortcuts: model.playlistShortcuts, player: model.player, suggestedLink: model.directLink)
-            Section("文库与搜索") {
+            Section("文库、搜索与 Connect") {
                 TextField("Client ID", text: $model.clientID)
                     .autocorrectionDisabled()
                 LabeledContent("Redirect URI") {
@@ -20,8 +20,12 @@ struct SmalltifySettings: View {
                 }
                 Text("先在 Developer Dashboard 的应用设置中添加以上完整回调地址，保留端口 43821。使用你自己的 Client ID，无需 Client Secret。")
                     .font(.callout).foregroundStyle(.secondary)
+                if model.signedIn, !model.connect.authorized {
+                    Text("设备切换需要新增播放权限，请点「重新授权 Spotify」。")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
                 HStack {
-                    Button(model.signedIn ? "重新授权文库" : "登录 Spotify 文库") { model.signIn() }
+                    Button(model.signedIn ? "重新授权 Spotify" : "登录 Spotify") { model.signIn() }
                         .disabled(model.authorizing)
                     if model.authorizing {
                         ProgressView().controlSize(.small)

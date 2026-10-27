@@ -6,7 +6,7 @@ import Testing
 struct SmalltifyProtocolTests {
     let trackID = "1234567890123456789012"
 
-    @Test func ownClientUsesPKCEAndReadOnlyScopes() throws {
+    @Test func ownClientUsesPKCEWithLibraryAndConnectScopes() throws {
         let url = try OfficialWebAPI.authorizationURL(clientID: "own-client", port: SmalltifyOAuth.callbackPort, verifier: "verifier", state: "state")
         let parts = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         let query = Dictionary(uniqueKeysWithValues: (parts.queryItems ?? []).map { ($0.name, $0.value ?? "") })
@@ -14,7 +14,10 @@ struct SmalltifyProtocolTests {
         #expect(query["code_challenge_method"] == "S256")
         #expect(query["code_challenge"] == PKCE.codeChallenge(for: "verifier"))
         #expect(query["redirect_uri"] == "http://127.0.0.1:43821/login")
-        #expect(query["scope"]?.contains("modify") == false)
+        #expect(query["scope"]?.contains("user-read-playback-state") == true)
+        #expect(query["scope"]?.contains("user-modify-playback-state") == true)
+        #expect(query["scope"]?.contains("playlist-modify") == false)
+        #expect(query["scope"]?.contains("user-library-modify") == false)
         #expect(query["client_secret"] == nil)
     }
 

@@ -7,6 +7,7 @@ import Security
     static let binarySHA256 = "3317fccefe7ea2379f9caad6d0c9daddecf69f82736d874c68fd4f464d5aab94"
     static let version = "1.3.10.19 · 2026-10-27"
     var snapshot = SoloistSnapshot()
+    var connect: SpotifyConnectController?
     private(set) var connected = false
     private(set) var running = false
     private(set) var starting = false
@@ -17,7 +18,26 @@ import Security
     private var socket: URLSessionWebSocketTask?
     private var generation = UUID()
     private let session = SmalltifyHTTPDelegate.session()
-    var canControl: Bool { connected && snapshot.loggedIn }
+    var displaySnapshot: SoloistSnapshot {
+        if let connect, connect.usesRemote, let state = connect.playback { return state.snapshot }
+        return snapshot
+    }
+    var canControl: Bool {
+        guard connect?.transferring != true else { return false }
+        if let connect, connect.usesRemote { return connect.canControl }
+        return connected && snapshot.loggedIn
+    }
+    var canSetVolume: Bool {
+        canControl && (connect?.usesRemote != true || connect?.playback?.device.supportsVolume == true)
+    }
+    var outputDescription: String {
+        if connect?.transferring == true { return "正在切换播放设备…" }
+        if let connect, connect.usesRemote, let device = connect.playback?.device { return "当前设备：" + device.name }
+        if connected {
+            return snapshot.loggedIn ? (snapshot.active ? "当前设备：Smalltify" : "已配对 · 播放器待命") : "等待配对：请在官方 Spotify 的设备列表中选择 Smalltify"
+        }
+        return running ? "正在连接 Soloist…" : "播放器未启动 · 请打开设置"
+    }
 
     static var dataDirectory: URL {
         URL.applicationSupportDirectory.appending(path: "Smalltify/Soloist", directoryHint: .isDirectory)
@@ -147,6 +167,14 @@ import Security
     }
 
     func send(_ command: String, uri: String? = nil, value: Double? = nil, enabled: Bool? = nil) async throws {
+        let playbackCommands = ["play", "pause", "skip_next", "skip_prev", "seek", "set_volume", "set_shuffle", "add_to_queue"]
+        if playbackCommands.contains(command), let connect {
+            guard !connect.transferring else { throw SmalltifyError("请等待设备切换完成。") }
+            if connect.usesRemote {
+                try await connect.send(command, uri: uri, value: value, enabled: enabled)
+                return
+            }
+        }
         guard connected, let socket else { throw SmalltifyError("请先启动播放器并完成配对。") }
         var object: [String: Any] = ["type": "command", "command": command]
         if let uri {

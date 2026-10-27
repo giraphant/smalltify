@@ -3,6 +3,7 @@ import Foundation
 nonisolated struct OfficialGrant: Codable, Sendable {
     var clientID: String
     var tokens: KeymasterTokens
+    var connectEnabled: Bool? = nil
 
     static func load() -> Self? {
         guard let data = SmalltifySecrets.load("web-grant") else { return nil }
@@ -63,6 +64,17 @@ actor OfficialWebAPI {
     }
 
     func get(_ url: URL) async throws -> Data {
+        try await request(url, method: "GET")
+    }
+
+    func sendPlayer(method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil) async throws {
+        guard ["PUT", "POST"].contains(method), path == "/me/player" || path.hasPrefix("/me/player/") else {
+            throw SmalltifyError("无效的播放控制请求。")
+        }
+        _ = try await request(Self.apiURL(path: path, query: query), method: method, body: body)
+    }
+
+    private func request(_ url: URL, method: String, body: Data? = nil) async throws -> Data {
         guard Self.allowedAPIURL(url) else { throw SmalltifyError("拒绝向非 Spotify 地址发送登录凭据。") }
         let expectedEpoch = epoch
         for attempt in 0 ... 1 {
@@ -72,17 +84,22 @@ actor OfficialWebAPI {
             let token = try await accessToken()
             guard expectedEpoch == epoch else { throw CancellationError() }
             var request = URLRequest(url: url)
+            request.httpMethod = method
+            request.httpBody = body
+            if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            debugLog("OfficialWebAPI", "[GET] \(url.path)")
+            debugLog("OfficialWebAPI", "[\(method)] \(url.path)")
             let (data, response) = try await session.data(for: request)
             try Task.checkCancellation()
             guard expectedEpoch == epoch else { throw CancellationError() }
             guard let http = response as? HTTPURLResponse else { throw SmalltifyError("Spotify 返回了无效响应。") }
             switch http.statusCode {
-            case 200: return data
+            case 200, 204: return data
             case 401 where attempt == 0:
                 if grant?.tokens.accessToken == token { grant?.tokens.expiresAt = .distantPast }
             case 401: throw SmalltifyError("Spotify 登录已失效，请在设置中重新授权。")
+            case 403 where url.path.hasPrefix("/v1/me/player"):
+                throw SmalltifyError("Spotify 拒绝播放控制（403）。请重新授权 Connect，并确认目标设备支持远程控制。")
             case 403:
                 throw SmalltifyError("Spotify 拒绝访问（403）。请确认开发者应用的 Premium 与用户授权；歌单曲目接口仅允许读取自己拥有或参与协作的歌单。")
             case 429:
@@ -112,7 +129,7 @@ actor OfficialWebAPI {
                 "grant_type": "refresh_token", "refresh_token": grant.tokens.refreshToken,
                 "client_id": grant.clientID,
             ], fallback: grant.tokens.refreshToken, session: session)
-            return OfficialGrant(clientID: grant.clientID, tokens: tokens)
+            return OfficialGrant(clientID: grant.clientID, tokens: tokens, connectEnabled: grant.connectEnabled)
         }
         refreshing = task
         defer { if expectedEpoch == epoch { refreshing = nil } }
@@ -129,7 +146,7 @@ actor OfficialWebAPI {
             URLQueryItem(name: "client_id", value: clientID),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: "http://127.0.0.1:\(port)/login"),
-            URLQueryItem(name: "scope", value: "user-library-read playlist-read-private playlist-read-collaborative"),
+            URLQueryItem(name: "scope", value: "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state"),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: PKCE.codeChallenge(for: verifier)),
             URLQueryItem(name: "state", value: state),

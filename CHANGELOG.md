@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
+- 恢复播放栏 Spotify Connect 设备选择器，支持查看设备、保留播放状态切换、切回本机，以及目标设备的播放控制和状态显示。新增播放权限需重新授权；旧文库授权继续可用。Build 15。
 - 播放时静默预取当前主歌手的前三页作品及资料；浏览复用短时内存缓存，合并并发请求，翻页失败保留已加载内容，退出账号清空缓存。
 - 歌手作品页：支持歌手搜索、从歌曲或播放栏进入歌手、头像、专辑／单曲／参与作品筛选及分页；保留多位合作歌手和页面返回路径。Build 13。
 - 播放栏显示 Soloist 提供的当前歌曲封面；切歌时清除旧封面，缺少图片时显示占位图。
