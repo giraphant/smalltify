@@ -90,6 +90,7 @@ nonisolated struct DiscoverSearchResults: Sendable {
     }
 }
 
+/// 搜索「…」: every kind at once, or one kind with paging, for the toolbar's query.
 struct SearchPage: View {
     let query: String
     @Environment(SmalltifyModel.self) private var model
@@ -102,7 +103,7 @@ struct SearchPage: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 360)
+            .frame(maxWidth: 360, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.vertical, 10)
             if !model.signedIn {
