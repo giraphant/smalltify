@@ -87,6 +87,39 @@ import Testing
         #expect(await requests.count == 13)
     }
 
+    @Test func recentContextSpotifyWillNotReturnShowsTheTracksAlbumInstead() async throws {
+        let playlist = FixtureData.playlists[0]
+        let album = FixtureData.albums[0]
+        let other = FixtureData.albums[1]
+        let history = FixtureData.json(["items": [
+            ["context": ["uri": playlist.uri], "track": album.trackObjects(withAlbum: true)[0]],
+            ["context": ["uri": album.uri], "track": album.trackObjects(withAlbum: true)[1]],
+            ["context": ["uri": other.uri], "track": other.trackObjects(withAlbum: true)[0]],
+        ]])
+        let requests = DiscoverRequestRecorder()
+        let catalog = DiscoverRecentCatalog { url in
+            await requests.record(url.path)
+            if url.path == "/v1/me/player/recently-played" { return history }
+            if url.path.hasPrefix("/v1/playlists/") { throw SmalltifyError("Resource not found", reason: .notFound) }
+            return FixtureData.respond(method: "GET", url: url).1
+        }
+        // The playlist's stand-in is the album played next, which shows once.
+        let first = try await catalog.load(refresh: false)
+        #expect(first.map(\.uri) == [album.uri, other.uri])
+        #expect(await requests.count == 4)
+        let second = try await catalog.load(refresh: false)
+        #expect(second == first)
+        #expect(await requests.count == 5)
+        _ = try await catalog.load(refresh: true)
+        #expect(await requests.paths.suffix(4).contains("/v1/playlists/\(playlist.id)"))
+
+        let offline = DiscoverRecentCatalog { url in
+            if url.path == "/v1/me/player/recently-played" { return history }
+            throw SmalltifyError("offline")
+        }
+        await #expect(throws: SmalltifyError.self) { try await offline.load(refresh: false) }
+    }
+
     @Test func timeRangesUseTheirEndpointLimits() throws {
         #expect(DiscoverTimeRange.allCases.map(\.title) == ["4 周", "6 个月", "1 年"])
         for range in DiscoverTimeRange.allCases {

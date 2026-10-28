@@ -8,12 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Build 19：首页「最近播放」不再因一个上下文取不到就整块显示 HTTP 404。Spotify 对第三方应用不返回它生成的歌单（每周新发现、新歌雷达等），这类上下文改为显示当时所播歌曲的专辑，同一专辑只显示一次，并记住不再重复请求，刷新时重试；网络、授权等其它错误仍整块提示。`OfficialWebAPI` 的 404 带上 `SmalltifyError.Reason.notFound`，打开这类歌单时说明原因，并提示存到常用歌单后直接播放。
 - Build 17：修复启动后不久或打开「正在播放」时的崩溃（AppKit 的 Update Constraints in Window 次数超限）。窗口本身不再设最小尺寸，改由侧边栏、页面列、「正在播放」各自固定的最小宽度和播放栏决定，页面内容不再影响列宽；首页「歌曲／歌手」是否并排改在一次布局内按给出的宽度决定，播放栏始终显示时间和音量，不再依据测得的宽度切换。窗口太窄时打开「正在播放」会把窗口加宽。卡片横排不再吸附滚动。调试构建新增 `SMALLTIFY_OPEN=stress`（快速切页、改窗口大小、开关侧栏和横幅）与 `sweep`（逐 2pt 拖动窗口宽度）用来压测布局。
 - 歌单简介去除 HTML 并解码实体；较早的刷新请求不会覆盖较新的页面数据。
 - 修正歌手作品接口每页上限为 10，避免 HTTP 400；显示 API 返回的具体错误，区分加载失败和空列表。Build 14。
 - Use an explicit loopback OAuth port (43821) to match the Developer Dashboard's actual HTTP URI validation. Keep the displayed/copied URI and listener consistent; fail with an actionable message if the port is occupied. Build incremented to 11.
 
 ### Added
+- Smalltify 金丝雀 Logo 候选：奶黄／薄荷底、柠檬黄／淡蓝紫底两版，原图与提示词保存在 `design/logo-candidates/smalltify-canary-v1/`。
+- Smalltify 画眉 Logo 候选：暖棕／奶油眉、薄荷绿／深绿眉两版，原图与提示词保存在 `design/logo-candidates/smalltify-hwamei-v1/`。
+- Smalltify 耳机小精灵 Logo 第二轮：B1 清爽系三张、B2 暖色系三张，以及两张轮廓／配色融合候选，原图与提示词保存于 `design/logo-candidates/smalltify-v2/`。
+- Smalltify Logo 候选：按 IP-as-Logo 方法生成听歌小鸟、耳机小精灵两个方向，各含左下／右下构图，原图与完整提示词保存在 `design/logo-candidates/smalltify-v1/`，供品牌选型。
 - Build 16：按 `design_handoff_smalltify/` 设计重做界面：侧边栏（首页、文库四项、常用歌单、连接状态与账号）、带前进后退的导航、工具栏搜索与粘贴链接、页面顶部唯一错误横幅和自动消失的提示。
 - 首页：最近播放（按播放上下文去重）、常听歌曲与歌手（4 周／6 个月／1 年）；缺少新权限时就地提示重新授权。
 - 混合搜索：一次请求取回歌曲、歌手、专辑、歌单，可切换单一类型并按 10 条分页；空结果与失败状态。
@@ -33,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Independent Keychain storage and tests for pagination credential boundaries, OAuth refresh/retry/rate limits, official catalog parsing and playback-state events. No vendor binary or real credentials are committed.
 
 ### Changed
+- 设置的播放器一栏新增「音质」说明：Soloist 的命令行和 WebSocket 都不提供音质参数，要像其它 Connect 设备一样，在官方 Spotify 的设备列表里为 Smalltify 选「无损」；装有官方客户端时可一键打开。实测：切换前约 317 kbps（9.6 MB／242.6 秒，320 kbps Ogg Vorbis）；在官方 App 为 Smalltify 选「无损」后，每首约 0.86–1.14 Mbps（26–37 MB），符合 16-bit FLAC。
+- 「存到常用歌单」去掉「常用名称」菜单，名称留空时使用歌单名称。
+- 未发布（build 19 之后）：减少开发模式配额消耗。Soloist 是当前设备时不再每 15 秒查询 `/me/player`，其它设备播放时 5 秒、暂停 15 秒、无设备 60 秒；去掉播放时的歌手预取；429 带 `QUOTA_EXCEEDED` 时只封锁同一组接口（按路径首段猜测），并显示恢复的钟点，普通限流仍封锁全部请求。只有现有测试覆盖，未单独测试分组封锁，也未用真实账号验证。
+- Smalltify 应用图标改为选定的 B1 耳机小精灵：使用薄荷绿角色、深色耳机和淡蓝背景，替换 Icon Composer 中的飞机图层，关闭额外的图层阴影和半透明效果。
 - 授权范围新增收藏写入、关注、常听与最近播放；旧授权会提示重新授权一次。
 - 封面按显示尺寸选取图片并缓存在内存和磁盘，滚动不再重复下载。
 - The app entry now uses the official-service UI; legacy Pathfinder/Keymaster/librespot code remains dormant. Runtime quality is explicitly unverified rather than inferred from Soloist's advertised lossless capability. Build incremented to 10.

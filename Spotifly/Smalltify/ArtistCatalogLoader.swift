@@ -1,6 +1,7 @@
 import Foundation
 
-/// Small, account-scoped memory cache shared by browsing and playback prefetch.
+/// Small, account-scoped memory cache for browsing artists. Nothing fetches into it ahead of a
+/// page: playback once did, and every change of artist spent requests from the developer quota.
 actor ArtistCatalogLoader {
     private struct Entry {
         let data: Data
@@ -10,7 +11,6 @@ actor ArtistCatalogLoader {
     private let api: OfficialWebAPI
     private var cache: [URL: Entry] = [:]
     private var inFlight: [URL: Task<Data, Error>] = [:]
-    private var prefetched: [String: Date] = [:]
     private var epoch = UUID()
 
     init(api: OfficialWebAPI) { self.api = api }
@@ -31,7 +31,6 @@ actor ArtistCatalogLoader {
         for task in inFlight.values { task.cancel() }
         inFlight = [:]
         cache = [:]
-        prefetched = [:]
     }
 
     private func get(_ url: URL, refresh: Bool = false) async throws -> Data {
@@ -55,7 +54,7 @@ actor ArtistCatalogLoader {
         return data
     }
 
-    func albums(from firstURL: URL, refresh: Bool = false, background: Bool = false) async throws -> CatalogPage {
+    func albums(from firstURL: URL, refresh: Bool = false) async throws -> CatalogPage {
         var items: [CatalogItem] = []
         var next: URL? = firstURL
         var visited = Set<URL>()
@@ -76,7 +75,6 @@ actor ArtistCatalogLoader {
                 // Keep the successful prefix and its retry URL if a later page fails.
                 break
             }
-            if background, next != nil, index < 2 { try await Task.sleep(for: .milliseconds(300)) }
         }
         return CatalogPage(items: items, next: next)
     }
@@ -89,23 +87,5 @@ actor ArtistCatalogLoader {
             guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
             return CatalogArtist.parse(object)
         } catch { return nil }
-    }
-
-    func prefetch(_ artist: CatalogArtist) async {
-        guard prefetched[artist.uri, default: .distantPast] <= Date() else { return }
-        // Failed or cancelled work gets a short cooldown too; skipping tracks must not hammer the API.
-        prefetched = prefetched.filter { $0.value > Date() }
-        prefetched[artist.uri] = Date().addingTimeInterval(60)
-        let generation = epoch
-        do {
-            let url = try Self.albumsURL(artistID: artist.spotifyID)
-            _ = try await albums(from: url, background: true)
-            try Task.checkCancellation()
-            _ = await profile(artistID: artist.spotifyID)
-            guard generation == epoch, !Task.isCancelled else { return }
-            prefetched[artist.uri] = Date().addingTimeInterval(300)
-        } catch {
-            // Background metadata errors never interrupt playback or replace the visible page.
-        }
     }
 }

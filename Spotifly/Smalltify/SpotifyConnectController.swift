@@ -82,11 +82,24 @@ import Observation
         polling = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                await refreshPlayback()
-                do { try await Task.sleep(for: .seconds(usesRemote ? 5 : 15)) }
+                if !localIsActive { await refreshPlayback() }
+                do { try await Task.sleep(for: pollInterval) }
                 catch { return }
             }
         }
+    }
+
+    /// Whether Soloist is the active device, which its socket reports as it changes. The Web API
+    /// then has nothing to add, and asking anyway every 15 seconds spent the development-mode
+    /// quota, which Spotify enforces with a lockout of many hours.
+    private var localIsActive: Bool { local?.snapshot.active == true }
+
+    /// How long until playback is next read: often only while another device is playing. While
+    /// Soloist is active nothing is read, and the short wait only notices it handing over.
+    private var pollInterval: Duration {
+        if localIsActive { return .seconds(2) }
+        guard let playback, playback.device.active else { return .seconds(60) }
+        return playback.snapshot.status == "playing" ? .seconds(5) : .seconds(15)
     }
 
     func refreshDevices() async {

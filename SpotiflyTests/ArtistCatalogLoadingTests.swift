@@ -44,39 +44,28 @@ import Testing
         #expect(loader.next == nil)
     }
 
-    @Test func playbackTriggersSilentPrefetchWithoutChangingTheVisiblePage() async throws {
+    @Test func playbackDoesNotFetchTheArtistAhead() async throws {
         ArtistCatalogProtocol.state.reset(.success)
         let model = SmalltifyModel(restoreCredentials: false, api: api())
         model.signedIn = true
         await model.start()
         model.player.snapshot.artists = [artist]
         model.player.snapshot.status = "playing"
-        for _ in 0 ..< 250 {
-            if ArtistCatalogProtocol.state.albumRequests().count == 3 { break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
-        #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
-        #expect(model.navigator.current == .home)
-        #expect(model.notices.banner == nil)
-        let loader = try model.artistAlbumsLoader(artist, group: "album,single")
-        loader.loadIfNeeded()
-        try await waitForLoad(loader)
-        #expect(loader.items.count == 30)
-        #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
+        // Longer than the 800 ms the removed prefetch waited before asking.
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(ArtistCatalogProtocol.state.albumRequests().isEmpty)
         model.player.snapshot.status = "paused"
     }
 
-    @Test func foregroundSharesPrefetchCacheAndRefreshCanBypassIt() async throws {
+    @Test func browsingSharesTheCacheAndRefreshBypassesIt() async throws {
         ArtistCatalogProtocol.state.reset(.success)
         let loader = ArtistCatalogLoader(api: api())
-        await loader.prefetch(artist)
-        let count = ArtistCatalogProtocol.state.albumRequests().count
-        #expect(count == 3)
         let url = try ArtistCatalogLoader.albumsURL(artistID: artist.spotifyID)
+        _ = try await loader.albums(from: url)
+        #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
         let cached = try await loader.albums(from: url)
         #expect(cached.items.count == 30)
-        await loader.prefetch(artist)
-        #expect(ArtistCatalogProtocol.state.albumRequests().count == count)
+        #expect(ArtistCatalogProtocol.state.albumRequests().count == 3)
         _ = try await loader.albums(from: url, refresh: true)
         #expect(ArtistCatalogProtocol.state.albumRequests().count == 6)
     }

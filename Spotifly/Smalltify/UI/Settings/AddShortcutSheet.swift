@@ -15,10 +15,6 @@ struct AddShortcutSheet: View {
                 .font(.callout).foregroundStyle(.secondary)
             LabeledContent("歌单名称") {
                 TextField("留空时使用歌单名称", text: $name).textFieldStyle(.roundedBorder)
-                Menu("常用名称") {
-                    Button("每周新发现") { name = "每周新发现" }
-                    Button("新歌雷达") { name = "新歌雷达" }
-                }.fixedSize()
             }
             LinkInputView(recognition: recognition, playlistsOnly: true, submit: save)
             if let error { Text(error).font(.callout).foregroundStyle(.red) }

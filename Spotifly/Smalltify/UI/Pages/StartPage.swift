@@ -22,6 +22,11 @@ nonisolated enum DiscoverTimeRange: String, CaseIterable, Identifiable {
 nonisolated struct DiscoverRecentContext: Sendable, Equatable {
     let uri: String
     let kind: String
+    /// Whether the card needs a request for the context. A track played outside any context
+    /// is shown as its album, which the history already describes.
+    let needsFetch: Bool
+    /// The played track's album: the card itself when there is no context, and the stand-in
+    /// for a context Spotify answers with 404, as it does for the playlists it makes.
     let fallback: CatalogItem?
 
     var path: String { "/\(kind)s/\(uri.split(separator: ":").last ?? "")" }
@@ -42,7 +47,8 @@ nonisolated struct DiscoverRecentContext: Sendable, Equatable {
                   CatalogItem.validURI(uri) || CatalogArtist.validURI(uri) else { continue }
             let kind = String(uri.split(separator: ":")[1])
             guard ["album", "playlist", "artist"].contains(kind), seen.insert(uri).inserted else { continue }
-            contexts.append(Self(uri: uri, kind: kind, fallback: context == nil ? album.flatMap { CatalogItem.parse($0) } : nil))
+            contexts.append(Self(uri: uri, kind: kind, needsFetch: context != nil,
+                                 fallback: album.flatMap { CatalogItem.parse($0) }))
             if contexts.count == 6 { break }
         }
         return contexts
@@ -53,6 +59,8 @@ nonisolated struct DiscoverRecentContext: Sendable, Equatable {
 actor DiscoverRecentCatalog {
     private let fetch: @Sendable (URL) async throws -> Data
     private var cache: [String: CatalogItem] = [:]
+    /// Contexts Spotify answered with 404, so later loads show their fallback without asking again.
+    private var missing: Set<String> = []
     private var generation = 0
 
     init(api: OfficialWebAPI) { fetch = { try await api.get($0) } }
@@ -65,25 +73,44 @@ actor DiscoverRecentCatalog {
         let url = try OfficialWebAPI.apiURL(path: "/me/player/recently-played", query: [.init(name: "limit", value: "50")])
         let contexts = try DiscoverRecentContext.parse(await fetch(url))
         let cached = refresh ? [:] : cache
-        let items = try await withThrowingTaskGroup(of: (Int, CatalogItem).self) { group in
+        let skipped = refresh ? [] : missing
+        let resolved = try await withThrowingTaskGroup(of: (index: Int, item: CatalogItem?, missing: Bool).self) { group in
             for (index, context) in contexts.enumerated() {
                 group.addTask { [fetch] in
-                    if let item = cached[context.uri] ?? context.fallback { return (index, item) }
+                    if let item = cached[context.uri] { return (index, item, false) }
+                    let knownMissing = skipped.contains(context.uri)
+                    guard context.needsFetch, !knownMissing else { return (index, context.fallback, knownMissing) }
                     let query: [URLQueryItem] = context.kind == "artist" ? [] : [.init(name: "market", value: "from_token")]
-                    let data = try await fetch(OfficialWebAPI.apiURL(path: context.path, query: query))
+                    let data: Data
+                    do {
+                        data = try await fetch(OfficialWebAPI.apiURL(path: context.path, query: query))
+                    } catch let error as SmalltifyError where error.reason == .notFound {
+                        // One context Spotify will not return must not cost the whole shelf.
+                        return (index, context.fallback, true)
+                    }
                     guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let item = CatalogItem.parse(object) else {
                         throw SmalltifyError("Spotify 最近播放内容格式无效。")
                     }
-                    return (index, item)
+                    return (index, item, false)
                 }
             }
-            var result: [(Int, CatalogItem)] = []
-            for try await item in group { result.append(item) }
-            return result.sorted { $0.0 < $1.0 }.map(\.1)
+            var result: [(index: Int, item: CatalogItem?, missing: Bool)] = []
+            for try await entry in group { result.append(entry) }
+            return result.sorted { $0.index < $1.index }
         }
+        // A stand-in album can be one the shelf already shows.
+        var seen = Set<String>()
+        let items = resolved.compactMap(\.item).filter { seen.insert($0.uri).inserted }
         if generation == run {
-            for item in items { cache[item.uri] = item }
+            if refresh { missing = [] }
+            for entry in resolved {
+                if entry.missing {
+                    missing.insert(contexts[entry.index].uri)
+                } else if let item = entry.item {
+                    cache[item.uri] = item
+                }
+            }
         }
         return items
     }

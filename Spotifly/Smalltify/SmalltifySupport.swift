@@ -7,7 +7,10 @@ nonisolated struct SmalltifyError: LocalizedError {
         case signedOut
         case authExpired
         case forbidden
-        case rateLimited(seconds: Int)
+        /// HTTP 404, which Spotify also answers for the playlists it makes, such as 每周新发现.
+        case notFound
+        /// A rate limit, or with `quota` a spent development-mode quota, until the given time.
+        case rateLimited(until: Date, quota: Bool)
     }
 
     let message: String

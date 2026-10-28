@@ -99,6 +99,19 @@ struct SoloistSettings: View {
                     }
                     .labelsHidden().pickerStyle(.segmented)
                 }
+                // Soloist takes no quality from its command line or WebSocket; like any Connect
+                // device, its quality is chosen in the official app.
+                GridRow(alignment: .firstTextBaseline) {
+                    Text("音质").foregroundStyle(.secondary).frame(width: 96, alignment: .trailing)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("在官方 Spotify 的设备列表里点 Smalltify，进入音质设置选「无损」（最高 24-bit/44.1 kHz，需 Premium）。Smalltify 无法直接更改。")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let spotify = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.spotify.client") {
+                            Button("打开 Spotify") { NSWorkspace.shared.openApplication(at: spotify, configuration: .init()) }
+                        }
+                    }
+                }
             }
             if let message = status.message { SettingsMessage(text: message) }
             HStack {

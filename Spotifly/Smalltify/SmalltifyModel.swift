@@ -59,9 +59,6 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     /// Debug fixture mode: never starts Soloist, never reads or writes the Keychain, never
     /// opens a real sign-in. Set only by `DebugFixtures`.
     @ObservationIgnored var isFixture = false
-    private var playbackObservation: Task<Void, Never>?
-    private var prefetchTask: Task<Void, Never>?
-    private var prefetchArtistURI: String?
     private var started = false
     private var authTask: Task<Void, Never>?
 
@@ -87,18 +84,12 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     func start() async {
         guard !started else { return }
         started = true
-        observePlaybackForPrefetch()
         connect.start()
         if signedIn {
             loadProfile()
             if needsScopeUpgrade { offerScopeUpgrade() }
         }
         if hasPlayerKey, !isFixture { await player.start(cacheMB: cacheMB) }
-    }
-
-    isolated deinit {
-        playbackObservation?.cancel()
-        prefetchTask?.cancel()
     }
 
     // MARK: - Status
@@ -142,9 +133,9 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
             ]))
         case .signedOut:
             break // Pages show their own "连接你的 Spotify 账号" state.
-        case let .rateLimited(seconds):
-            notices.show(.init(message: "请求太频繁，Spotify 暂时限流。约 \(seconds) 秒后再试。", tone: .warning))
-        case .forbidden, .other:
+        case .rateLimited:
+            notices.show(.init(message: error.localizedDescription, tone: .warning))
+        case .forbidden, .notFound, .other:
             break // Pages show load failures in place; the banner is for what blocks the whole window.
         }
     }
@@ -169,7 +160,7 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     }
 
     /// An artist's releases of one group (`album,single`, `album`, `single`, `appears_on`), through
-    /// the catalog cache that playback prefetches into, so an artist playing opens instantly.
+    /// the catalog cache, so going back to an artist shortly after does not ask again.
     func artistAlbumsLoader(_ artist: CatalogArtist, group: String) throws -> PagedLoader {
         let url = try ArtistCatalogLoader.albumsURL(artistID: artist.spotifyID, group: group)
         return pages.loader("\(Destination.artist(artist).key)/albums:\(group)") {
@@ -309,28 +300,6 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
         }
     }
 
-    private func observePlaybackForPrefetch() {
-        playbackObservation = Task { [weak self, player] in
-            let changes = Observations { [weak self] in
-                (player.displaySnapshot.artists.first, player.displaySnapshot.status, self?.signedIn ?? false)
-            }
-            for await (artist, status, authorized) in changes {
-                guard let self, !Task.isCancelled else { return }
-                let candidate = authorized && status == "playing" ? artist : nil
-                guard candidate?.uri != prefetchArtistURI else { continue }
-                prefetchTask?.cancel()
-                prefetchArtistURI = candidate?.uri
-                guard let candidate else { continue }
-                prefetchTask = Task { [artistCatalog] in
-                    do {
-                        try await Task.sleep(for: .milliseconds(800))
-                        await artistCatalog.prefetch(candidate)
-                    } catch {}
-                }
-            }
-        }
-    }
-
     func signIn() {
         guard !authorizing else { return }
         guard !isFixture else { return notices.toast("演示模式：不会真的登录") }
@@ -365,8 +334,6 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
                     "redirect_uri": "http://127.0.0.1:\(port)/login", "code_verifier": verifier,
                 ], session: session)
                 try Task.checkCancellation()
-                prefetchTask?.cancel()
-                prefetchArtistURI = nil
                 await artistCatalog.clear()
                 try await api.replaceGrant(OfficialGrant(clientID: id, tokens: tokens, connectEnabled: true,
                                                          scopeVersion: OfficialWebAPI.scopeVersion))
@@ -397,8 +364,6 @@ nonisolated struct ConnectionStatus: Equatable, Sendable {
     func signOut() {
         guard !isFixture else { return notices.toast("演示模式：不会退出") }
         authTask?.cancel()
-        prefetchTask?.cancel()
-        prefetchArtistURI = nil
         connect.setAuthorized(false)
         pages.clear()
         Task {

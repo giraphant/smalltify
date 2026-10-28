@@ -31,7 +31,10 @@ actor OfficialWebAPI {
     private var grant: OfficialGrant?
     private var epoch = UUID()
     private var refreshing: Task<OfficialGrant, Error>?
+    /// A rate limit, which covers the whole client.
     private var retryAfter = Date.distantPast
+    /// Quota lockouts by `quotaGroup`. They last hours, and cover one group of endpoints.
+    private var quotaResets: [String: Date] = [:]
     private let session: URLSession
     private let persist: @Sendable (OfficialGrant?) throws -> Void
 
@@ -71,6 +74,41 @@ actor OfficialWebAPI {
         return url
     }
 
+    /// The group of endpoints a quota lockout covers. Spotify sorts endpoints into quota buckets
+    /// without saying which, so this is a guess that stops one spent bucket from blocking the
+    /// rest: the first path segment, or the first two under `/me`.
+    nonisolated static func quotaGroup(_ url: URL) -> String {
+        let parts = url.path.split(separator: "/").dropFirst().map(String.init)
+        guard let first = parts.first else { return "" }
+        return first == "me" && parts.count > 1 ? "me/" + parts[1] : first
+    }
+
+    /// A limit, in words for whoever waits: seconds for a short rate limit, and the time of day
+    /// for anything longer, such as a quota lockout, which lasts hours.
+    nonisolated static func limited(until: Date, quota: Bool, now: Date = Date(),
+                                    calendar: Calendar = .current) -> SmalltifyError {
+        let seconds = max(1, Int(until.timeIntervalSince(now).rounded(.up)))
+        let message = if quota {
+            "Spotify 开发者配额已用完，约 \(clock(until, now: now, calendar: calendar)) 恢复。"
+        } else if seconds < 120 {
+            "Spotify 请求限流，请 \(seconds) 秒后重试。"
+        } else {
+            "Spotify 请求限流，约 \(clock(until, now: now, calendar: calendar)) 恢复。"
+        }
+        return SmalltifyError(message, reason: .rateLimited(until: until, quota: quota))
+    }
+
+    /// `14:05`, `明天 09:30`, or `10月30日 09:30`, in the calendar's time zone.
+    nonisolated static func clock(_ date: Date, now: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.month, .day, .hour, .minute], from: date)
+        let time = String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+        if calendar.isDate(date, inSameDayAs: now) { return time }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) {
+            return "明天 " + time
+        }
+        return "\(parts.month ?? 0)月\(parts.day ?? 0)日 " + time
+    }
+
     nonisolated static func allowedAPIURL(_ url: URL) -> Bool {
         url.scheme == "https" && url.host == "api.spotify.com"
             && (url.port == nil || url.port == 443) && url.user == nil && url.password == nil
@@ -104,11 +142,11 @@ actor OfficialWebAPI {
     private func request(_ url: URL, method: String, body: Data? = nil) async throws -> Data {
         guard Self.allowedAPIURL(url) else { throw SmalltifyError("拒绝向非 Spotify 地址发送登录凭据。") }
         let expectedEpoch = epoch
+        let group = Self.quotaGroup(url)
         for attempt in 0 ... 1 {
-            guard Date() >= retryAfter else {
-                let seconds = max(1, Int(retryAfter.timeIntervalSinceNow))
-                throw SmalltifyError("Spotify 请求限流，请稍后再试（约 \(seconds) 秒）。", reason: .rateLimited(seconds: seconds))
-            }
+            let now = Date()
+            if retryAfter > now { throw Self.limited(until: retryAfter, quota: false, now: now) }
+            if let reset = quotaResets[group], reset > now { throw Self.limited(until: reset, quota: true, now: now) }
             let token = try await accessToken()
             guard expectedEpoch == epoch else { throw CancellationError() }
             var request = URLRequest(url: url)
@@ -130,10 +168,16 @@ actor OfficialWebAPI {
                 throw SmalltifyError("Spotify 拒绝播放控制（403）。请重新授权 Connect，并确认目标设备支持远程控制。", reason: .forbidden)
             case 403:
                 throw SmalltifyError("Spotify 拒绝访问（403）。请确认开发者应用的 Premium 与用户授权；歌单曲目接口仅允许读取自己拥有或参与协作的歌单。", reason: .forbidden)
+            case 404 where method == "GET" && url.path.hasPrefix("/v1/playlists/"):
+                throw SmalltifyError("Spotify 没有返回这个歌单（HTTP 404）。每周新发现、新歌雷达等 Spotify 生成的歌单不对第三方应用开放；把它的链接存到常用歌单，就能在侧边栏直接播放。", reason: .notFound)
             case 429:
                 let delay = max(1, Double(http.value(forHTTPHeaderField: "Retry-After") ?? "30") ?? 30)
-                retryAfter = Date().addingTimeInterval(delay)
-                throw SmalltifyError("Spotify 请求限流，请 \(Int(delay)) 秒后重试。", reason: .rateLimited(seconds: Int(delay)))
+                let until = Date().addingTimeInterval(delay)
+                // Spotify names a spent development-mode quota in the body; anything else is the rate limit.
+                let quota = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])
+                    .flatMap { $0["error"] as? [String: Any] }?["reason"] as? String == "QUOTA_EXCEEDED"
+                if quota { quotaResets[group] = until } else { retryAfter = until }
+                throw Self.limited(until: until, quota: quota)
             default:
                 let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 let details = object?["error"] as? [String: Any]
@@ -141,7 +185,8 @@ actor OfficialWebAPI {
                     .replacing(token, with: "[redacted]")
                     .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
                 let suffix = message.isEmpty ? "" : " " + String(message.prefix(240))
-                throw SmalltifyError("Spotify 请求失败（HTTP \(http.statusCode)）。" + suffix)
+                throw SmalltifyError("Spotify 请求失败（HTTP \(http.statusCode)）。" + suffix,
+                                     reason: http.statusCode == 404 ? .notFound : .other)
             }
         }
         throw SmalltifyError("请重新登录 Spotify。", reason: .authExpired)
