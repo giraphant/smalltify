@@ -10,6 +10,7 @@ import SwiftUI
 struct SoloistSettingsSection: View {
     @Bindable private var soloist = SoloistService.shared
     @State private var key = ""
+    @State private var confirmingReset = false
 
     var body: some View {
         Section {
@@ -24,7 +25,19 @@ struct SoloistSettingsSection: View {
             LabeledContent("preferences.soloist.status") {
                 status
             }
+            if let error = soloist.pairingError, soloist.state == .waitingForPairing {
+                Text(verbatim: error).foregroundStyle(.red)
+            }
             HStack {
+                if soloist.state == .waitingForPairing {
+                    Button(soloist.pairing ? "preferences.soloist.pairing" : "preferences.soloist.pair") {
+                        Task { await soloist.pair() }
+                    }
+                    .disabled(soloist.pairing)
+                }
+                if soloist.isRunning {
+                    Button("preferences.soloist.reset") { confirmingReset = true }
+                }
                 Spacer()
                 Button("preferences.soloist.stop") { Task { await soloist.stop() } }
                     .disabled(!soloist.isRunning)
@@ -39,6 +52,12 @@ struct SoloistSettingsSection: View {
             Text("preferences.soloist")
         } footer: {
             Text("preferences.soloist.footer")
+        }
+        .alert("preferences.soloist.reset.title", isPresented: $confirmingReset) {
+            Button("preferences.soloist.reset.action", role: .destructive) { Task { await soloist.reset() } }
+            Button("common.cancel", role: .cancel) {}
+        } message: {
+            Text("preferences.soloist.reset.message")
         }
     }
 

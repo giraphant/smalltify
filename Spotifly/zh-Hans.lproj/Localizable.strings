@@ -1,0 +1,378 @@
+/* App */
+"app.name" = "Smalltify";
+
+/* Authentication */
+"auth.connect.description" = "连接你的 Spotify 账号即可开始。浏览器会授权 Smalltify，这台 Mac 也会成为一台 Spotify Connect 设备。";
+"auth.connect.button" = "使用 Spotify 登录";
+"auth.loading" = "正在加载…";
+"auth.logout" = "退出登录";
+
+/* Navigation */
+"nav.startpage" = "首页";
+"nav.search" = "搜索";
+"search.scope" = "显示";
+"search.scope.all" = "全部";
+"search.scope.tracks" = "歌曲";
+"search.scope.artists" = "歌手";
+"search.scope.albums" = "专辑";
+"search.scope.playlists" = "歌单";
+"search.no_results %@" = "没有找到“%@”";
+"search.no_results_description" = "检查一下拼写，或换个关键词。";
+"search.load_more" = "加载更多";
+"search.prompt" = "歌曲、歌手、专辑、歌单";
+"favorites.filter_prompt" = "在喜欢的歌曲中搜索";
+"detail.play" = "播放";
+"detail.shuffle" = "随机播放";
+"detail.kind.playlist" = "歌单";
+"detail.kind.followed_playlist" = "歌单 · 已关注";
+"detail.in_library" = "已在资料库";
+"detail.add_to_library" = "添加到资料库";
+"detail.kind.album" = "专辑";
+"detail.kind.album %@" = "专辑 · %@";
+"detail.kind.artist" = "歌手";
+"detail.follow" = "关注";
+"detail.following" = "已关注";
+"table.number" = "#";
+"table.title" = "标题";
+"table.album" = "专辑";
+"table.added" = "添加日期";
+"table.duration" = "时长";
+"search.recent" = "最近搜索";
+"search.recent_footer" = "只保存在这台 Mac 上。";
+"search.remove_recent" = "移除";
+"search.clear_recent" = "清除历史";
+"search.no_recent" = "没有最近搜索";
+"search.no_recent_description" = "搜索歌曲、歌手、专辑和歌单。";
+"nav.favorites" = "喜欢的歌曲";
+"nav.playlists" = "歌单";
+"nav.albums" = "专辑";
+"nav.artists" = "歌手";
+"nav.queue" = "播放队列";
+"nav.speakers" = "播放设备";
+"nav.library" = "资料库";
+"nav.profile" = "个人资料";
+"nav.settings" = "设置";
+"nav.back_to %@" = "返回“%@”";
+"nav.back" = "返回";
+"nav.forward_to %@" = "前进到“%@”";
+"nav.forward" = "前进";
+"nav.currently_viewing" = "当前页面";
+"nav.your_library" = "你的资料库";
+"library.filter.playlists" = "筛选歌单";
+"library.filter.albums" = "筛选专辑";
+"library.sort" = "排序方式";
+"library.sort.recently_added" = "最近添加";
+"library.sort.title" = "标题";
+"library.sort.artist" = "歌手";
+"library.filter.artists" = "筛选歌手";
+
+/* Common Actions */
+"action.play" = "播放";
+"action.copy" = "拷贝";
+"action.copy_link" = "拷贝链接";
+"action.pause" = "暂停";
+"action.more" = "更多选项";
+"action.try_again" = "重试";
+"action.cancel" = "取消";
+"action.create" = "创建";
+"action.share" = "共享";
+
+/* Track Context Menu */
+"track.menu.play_next" = "下一首播放";
+"track.menu.start_radio" = "开始歌曲电台";
+"track.menu.add_to_favorites" = "添加到喜欢的歌曲";
+"track.menu.remove_from_favorites" = "从喜欢的歌曲中移除";
+"track.menu.add_to_playlist" = "添加到歌单";
+"track.menu.add_to_new_playlist" = "添加到新歌单…";
+"track.menu.remove_from_playlist" = "从此歌单中移除";
+"track.menu.go_to_artist" = "前往歌手";
+"track.menu.go_to_album" = "前往专辑";
+
+/* New Playlist Dialog */
+"playlist.new.title" = "新建歌单";
+"playlist.new.placeholder" = "歌单名称";
+"playlist.new.message" = "输入新歌单的名称";
+
+/* Playback */
+
+/* Mini Player */
+"mini_player.restore" = "恢复完整窗口";
+"mini_player.menu" = "迷你播放器";
+"inspector.title" = "正在播放";
+"inspector.up_next" = "接下来播放";
+"inspector.nothing_playing" = "没有在播放";
+
+/* Now Playing Bar */
+"now_playing.position" = "播放进度";
+"now_playing.position_value %@ %@" = "%1$@ / %2$@";
+"now_playing.playing_on" = "播放设备…";
+"shuffle.enable" = "开启随机播放";
+"shuffle.disable" = "关闭随机播放";
+"shuffle.unavailable" = "当前播放的内容（例如电台）不支持随机播放";
+"repeat.off" = "循环播放";
+"repeat.context" = "循环：全部";
+"repeat.track" = "循环：单曲";
+"repeat.unavailable" = "当前播放的内容（例如电台）不支持循环播放";
+
+/* Loading States */
+"loading.favorites" = "正在加载喜欢的歌曲…";
+"loading.playlists" = "正在加载歌单…";
+"loading.albums" = "正在加载专辑…";
+"loading.artists" = "正在加载歌手…";
+"loading.tracks" = "正在加载歌曲…";
+
+/* Error Messages */
+"error.load_favorites" = "无法加载喜欢的歌曲";
+"error.load_playlists" = "无法加载歌单";
+"error.load_albums" = "无法加载专辑";
+"error.load_artists" = "无法加载歌手";
+"error.no_playback_device" = "这台 Mac 没有连上 Spotify，所以不能在其他设备上开始播放";
+"error.player_not_ready" = "播放器没能及时连上 Spotify";
+"error.player_not_initialized" = "播放器没有连上 Spotify";
+"error.album_not_found" = "Spotify 找不到这张专辑，它可能在你所在的国家或地区不可用。";
+"error.artist_not_found" = "Spotify 找不到这位歌手。";
+"error.playlist_not_found" = "Spotify 找不到这个歌单。";
+"error.album_failed" = "Spotify 未能加载这张专辑。";
+"error.artist_failed" = "Spotify 未能加载这位歌手。";
+"error.playlist_failed" = "Spotify 未能加载这个歌单。";
+"error.track_unavailable %@" = "Spotify 上无法播放：“%@”";
+"error.track_unavailable_in_country %@" = "在你所在的国家或地区不可用：“%@”";
+"playback.skipped_unavailable %@" = "已跳过不可播放的歌曲：“%@”";
+
+/* Empty States */
+"empty.select_item" = "从边栏中选择一项";
+"empty.select_album" = "选择一张专辑查看详情";
+"empty.select_artist" = "选择一位歌手查看详情";
+"empty.select_playlist" = "选择一个歌单查看详情";
+"empty.no_favorites" = "还没有喜欢的歌曲";
+"empty.no_favorites.description" = "在 Spotify App 中点赞歌曲后会显示在这里";
+"empty.no_playlists" = "没有歌单";
+"empty.no_playlists.description" = "在 Spotify App 中创建歌单";
+"empty.no_albums" = "没有收藏的专辑";
+"empty.no_albums.description" = "在 Spotify App 中收藏专辑";
+"empty.no_artists" = "没有关注的歌手";
+"empty.no_artists.description" = "在 Spotify App 中关注歌手";
+"empty.queue_empty" = "播放队列为空";
+"empty.queue_empty.description" = "播放一首歌、一张专辑、一个歌单或一位歌手后，这里会显示播放队列";
+
+/* Queue */
+"queue.title" = "播放队列";
+"queue.playing_from" = "正在播放";
+"queue.on_device" = "于";
+"queue.context_name %@" = "“%@”";
+"queue.playing_on" = "播放设备";
+"queue.scroll_to_current" = "滚动到当前歌曲";
+"queue.upcoming %lld" = "接下来 %lld 首";
+
+/* Startpage */
+"startpage.empty" = "暂时没有内容";
+"startpage.empty.description" = "Spotify 会根据你听的内容生成这个页面。";
+"home.recently_played" = "最近播放";
+"home.top_tracks" = "你的常听歌曲";
+"home.top_content_failed" = "无法加载你的常听歌曲。";
+"home.range" = "时间范围";
+"home.range.short" = "4 周";
+"home.range.mid" = "6 个月";
+"home.range.long" = "1 年";
+"home.top_artists" = "你的常听歌手";
+"home.your_playlists" = "你的歌单";
+"home.show_all" = "显示全部";
+"startpage.error" = "无法加载首页";
+
+/* Metadata */
+"metadata.by_owner" = "由 %@ 创建";
+"metadata.separator" = "•";
+
+
+/* Speakers */
+"speakers.type_active %@" = "%@ · 正在使用";
+"device_type.this_mac" = "这台 Mac";
+"device_type.computer" = "电脑";
+"device_type.smartphone" = "手机";
+"device_type.tablet" = "平板电脑";
+"device_type.speaker" = "音箱";
+"device_type.tv" = "电视";
+"device_type.avr" = "AV 功放";
+"device_type.stb" = "机顶盒";
+"device_type.automobile" = "汽车";
+"speakers.empty" = "没有找到设备";
+"speakers.empty_hint" = "在另一台设备上打开 Spotify，它就会出现在这里";
+"speakers.audio_output" = "AirPlay";
+"speakers.airplay_in_bar" = "用播放栏中的 AirPlay 按钮选择接收设备。";
+"speakers.spotify_connect" = "Spotify Connect";
+"speakers.airplay_hint" = "只把 Smalltify 的声音发送到接收设备，Mac 上的其他声音仍在本机播放。接收设备的音量在 AirPlay 菜单中调节。";
+"now_playing.airplay" = "AirPlay";
+"speakers.airplay_disabled_hint" = "只有 Smalltify 是当前设备时才能使用 AirPlay";
+"speakers.spotify_connect_hint" = "显示你的账号此刻连接的所有设备。";
+
+/* Volume */
+"volume.device_controls_itself %@" = "%@ 自行控制音量";
+"volume.title" = "音量";
+"volume.airplay_help" = "音量。AirPlay 接收设备的音量在 AirPlay 菜单中调节。";
+
+/* Menu Commands */
+"menu.playback" = "播放";
+"menu.play_pause" = "播放 / 暂停";
+"menu.next_track" = "下一首";
+"menu.previous_track" = "上一首";
+"menu.volume_up" = "增大音量";
+"menu.volume_down" = "减小音量";
+"menu.like_track" = "喜欢 / 取消喜欢";
+"menu.navigate" = "前往";
+"menu.favorites" = "喜欢的歌曲";
+"menu.playlists" = "歌单";
+"menu.albums" = "专辑";
+"menu.artists" = "歌手";
+"menu.search" = "搜索";
+"menu.refresh" = "刷新";
+
+/* Preferences */
+"preferences.general" = "通用";
+"preferences.appearance" = "外观";
+"preferences.appearance.system" = "跟随系统";
+"preferences.appearance.light" = "浅色";
+"preferences.appearance.dark" = "深色";
+"preferences.language" = "语言";
+"preferences.language.system" = "跟随系统";
+"preferences.language.restart_note" = "Smalltify 重新启动后使用新的语言。";
+"preferences.language.restart" = "立即重新启动";
+"preferences.playback" = "播放";
+"preferences.shortcuts" = "快捷键";
+"preferences.shortcut.sidebar" = "显示/隐藏边栏";
+"preferences.shortcut.space" = "空格";
+"preferences.streaming_quality" = "流媒体音质";
+"preferences.gapless_playback" = "无缝播放";
+"preferences.restart_note" = "更改将在重新开始播放时生效。";
+"preferences.soloist" = "Soloist（无损）";
+"preferences.soloist.key" = "API Key";
+"preferences.soloist.key_saved" = "已保存在钥匙串中，留空则保持不变";
+"preferences.soloist.key_prompt" = "开发者后台中的 Soloist API Key";
+"preferences.soloist.prefer" = "通过 Soloist 播放";
+"preferences.soloist.cache" = "缓存";
+"preferences.soloist.status" = "状态";
+"preferences.soloist.stop" = "停止";
+"preferences.soloist.save_start" = "保存并启动";
+"preferences.soloist.save_restart" = "保存并重启";
+"preferences.soloist.footer" = "Spotify 只通过自家的播放器播放无损，Soloist 就是其中之一。Smalltify 会用你的账号为它登录；在 Spotify App 的设备列表中为“Smalltify”选一次“无损”即可。";
+"preferences.soloist.state.not_configured" = "需要 API Key";
+"preferences.soloist.state.stopped" = "已停止";
+"preferences.soloist.state.starting" = "正在启动…";
+"preferences.soloist.state.pairing" = "未登录";
+"preferences.soloist.state.ready" = "就绪";
+"soloist.error.missing" = "这个版本中没有 Soloist。";
+"soloist.error.untrusted" = "Soloist 未通过完整性检查，没有启动。";
+"soloist.error.did_not_start" = "Soloist 没有启动，请检查 API Key。";
+"soloist.error.expired" = "这个 Soloist 版本已过期，需要更新。";
+"soloist.error.exited %lld" = "Soloist 已停止（状态 %lld）。";
+"preferences.soloist.pair" = "在此登录";
+"preferences.soloist.pairing" = "正在登录…";
+"preferences.soloist.reset" = "重置 Soloist…";
+"preferences.soloist.reset.title" = "要重置 Soloist 吗？";
+"preferences.soloist.reset.message" = "Soloist 会成为一台新设备，并在这里重新登录。它的音质会恢复默认，需要在 Spotify App 中重新选择“无损”。";
+"preferences.soloist.reset.action" = "重置";
+"soloist.error.no_login" = "请先登录 Smalltify，Soloist 会使用同一个账号登录。";
+"soloist.error.not_reached" = "无法连接到 Soloist 为它登录。";
+"soloist.error.unsupported %@" = "Soloist 要求的登录方式本 App 无法提供（%@）。请改在 Spotify App 的设备列表中选一次“Smalltify”。";
+"soloist.error.refused %@" = "Soloist 拒绝了登录（%@）。请改在 Spotify App 的设备列表中选一次“Smalltify”。";
+
+/* Album Context Menu & Alerts */
+"album.remove.title" = "从资料库中移除";
+"album.remove.action" = "移除";
+"album.remove.message %@" = "确定要从资料库中移除“%@”吗？";
+
+/* Artist Context Menu & Alerts */
+"artist.menu.unfollow" = "取消关注";
+"artist.menu.follow" = "关注";
+"artist.unfollow.title" = "取消关注歌手";
+"artist.unfollow.action" = "取消关注";
+"artist.unfollow.message %@" = "确定要取消关注“%@”吗？";
+"artist.discography" = "作品";
+"artist.discography.albums" = "专辑";
+"artist.discography.singles" = "单曲和 EP";
+"artist.discography.compilations" = "合辑";
+"artist.discography.empty" = "这里什么也没有。";
+
+/* Playlist Context Menu & Alerts */
+"playlist.menu.edit_details" = "编辑详情";
+"playlist.menu.delete" = "删除歌单";
+"playlist.menu.unfollow" = "取消关注歌单";
+"playlist.menu.follow" = "关注歌单";
+"playlist.menu.choose_cover" = "选择图片…";
+"playlist.menu.remove_cover" = "移除图片";
+"playlist.remove_cover.title" = "移除封面图片";
+"playlist.remove_cover.action" = "移除";
+"playlist.remove_cover.message" = "Spotify 会重新为这个歌单显示自动生成的封面。";
+"playlist.edit_details.title" = "编辑歌单";
+"playlist.edit_details.name" = "名称";
+"playlist.edit_details.description" = "描述";
+"playlist.edit_details.message" = "编辑歌单的名称和描述";
+"playlist.edit_details.save" = "保存";
+"playlist.delete.title" = "删除歌单";
+"playlist.delete.action" = "删除";
+"playlist.delete.message %@" = "确定要删除“%@”吗？此操作无法撤销。";
+"playlist.unfollow.title" = "取消关注歌单";
+"playlist.unfollow.action" = "取消关注";
+"playlist.unfollow.message %@" = "确定要取消关注“%@”吗？";
+
+/* Connection Status */
+"connection.status" = "状态";
+"connection.reconnect_attempts" = "重连次数";
+"connection.device_id" = "设备 ID";
+"connection.reconnect" = "重新连接";
+"connection.no_data" = "没有连接数据";
+"connection.connected" = "已连接";
+"connection.disconnected" = "已断开";
+"connection.connected_for %@" = "已连接 %@";
+"connection.details" = "详细信息";
+"connection.last_error" = "最近的错误";
+"connection.reconnect_hint" = "只在播放卡住时需要。";
+
+/* Speakers */
+"speakers.spotify_connection" = "Spotify 连接";
+
+/* Error Messages - Actions */
+"error.delete_playlist %@" = "无法删除歌单：%@";
+"error.unfollow_playlist %@" = "无法取消关注歌单：%@";
+"error.update_playlist %@" = "无法更新歌单：%@";
+"error.reorder_tracks %@" = "无法调整歌曲顺序：%@";
+"error.remove_album %@" = "无法移除专辑：%@";
+"error.save_album %@" = "无法收藏专辑：%@";
+"error.unfollow_artist %@" = "无法取消关注歌手：%@";
+"error.follow_artist %@" = "无法关注歌手：%@";
+"error.update_favorite %@" = "无法更新喜欢的歌曲：%@";
+"error.add_to_playlist %@" = "无法添加到歌单：%@";
+"error.remove_from_playlist %@" = "无法从歌单中移除：%@";
+"error.create_playlist %@" = "无法创建歌单：%@";
+
+/* Profile */
+"profile.unavailable" = "无法获取账号信息";
+"profile.unavailable.description" = "退出后重新登录，以重新连接你的 Spotify 账号。";
+"profile.open_in_spotify" = "在 Spotify 中打开";
+"profile.section.account" = "账号";
+"profile.display_name" = "显示名称";
+"profile.id" = "用户 ID";
+"profile.web" = "网页上的个人资料";
+"profile.manage_account" = "管理账号";
+"profile.manage_account.footer" = "在你的 Spotify 账号中管理订阅、付款信息和隐私设置。";
+"profile.app_settings" = "App 设置";
+"profile.open_settings" = "设置…";
+"profile.logout" = "退出登录…";
+"profile.logout.title" = "要退出 Spotify 吗？";
+"profile.logout.message" = "你随时可以重新登录。";
+
+// The grant: signing in on the login screen, re-authorizing playback everywhere else
+"auth.connect_cancel" = "正在等待浏览器——取消";
+"auth.connect_failed" = "无法连接 Spotify，请重试。";
+"speakers.enable_this_mac" = "启用这台 Mac";
+"speakers.enable_this_mac_cancel" = "取消授权";
+"playback.needs_authorization_title" = "要在这台 Mac 上启用播放吗？";
+"playback.needs_authorization_message" = "没有可以播放的设备。授权流媒体后即可在这里播放，或者先在其他设备上开始播放。";
+"playback.needs_authorization_authorize" = "授权";
+"playback.needs_premium" = "在这台 Mac 上播放需要 Spotify Premium。";
+"playback.needs_premium_title" = "在这台 Mac 上播放需要 Spotify Premium";
+"playback.needs_premium_message" = "资料库、搜索和歌单照常可用。要在这台 Mac 上播放音乐，请退出后用 Premium 账号登录。";
+"speakers.this_mac_needs_premium" = "这台 Mac 只为 Premium 账号播放";
+"common.ok" = "好";
+"common.cancel" = "取消";
+"auth.enable_playback_failed_title" = "没能启用这台 Mac";
+"auth.enable_playback_wrong_account" = "浏览器登录的 Spotify 账号和你在这里登录的不是同一个。请在浏览器中登录同一个账号后重试。";

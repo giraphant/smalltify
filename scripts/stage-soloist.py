@@ -15,7 +15,7 @@ parser.add_argument("--source", type=Path, default=Path("build/soloist/soloist")
 parser.add_argument("--app", type=Path)
 args = parser.parse_args()
 if not args.source.is_file():
-    raise SystemExit("Missing local Soloist binary. See FORK.md; builds never fetch binaries automatically.")
+    raise SystemExit("Missing local Soloist binary. See SMALLTIFY.md; builds never fetch binaries automatically.")
 if hashlib.sha256(args.source.read_bytes()).hexdigest() != EXPECTED_SHA256:
     raise SystemExit("Soloist SHA-256 mismatch. Refusing an unreviewed binary update.")
 subprocess.run(["codesign", "--verify", "--strict", "-R", "=" + REQUIREMENT, str(args.source)], check=True)

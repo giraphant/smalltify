@@ -17,14 +17,15 @@ import Security
 /// it running and preferred, plays go to it over connect-state
 /// (`PlaybackViewModel.playbackTarget`), so this app browses and controls while Soloist plays.
 ///
-/// It joins the account once, when it is chosen in an official Spotify app's device list, and
-/// keeps its own session in `dataDirectory` after that. Its quality, lossless included, is set
-/// there too, as for any Connect device.
+/// It joins the account this app is signed in to by itself (`SoloistPairing`), as it would when
+/// chosen in an official Spotify app's device list, and keeps its own session in `dataDirectory`
+/// after that. Its quality, lossless included, is set in an official app, as for any Connect
+/// device.
 @MainActor @Observable final class SoloistService {
     static let shared = SoloistService()
 
     /// The name it has in every device list, and how this app finds it in the cluster's.
-    static let deviceName = "Spotifly Soloist"
+    static let deviceName = "Smalltify"
     static let version = "1.3.10.19"
     /// The one build this app runs; `scripts/stage-soloist.py` checks the same digest.
     static let binarySHA256 = "3317fccefe7ea2379f9caad6d0c9daddecf69f82736d874c68fd4f464d5aab94"
@@ -41,6 +42,8 @@ import Security
 
     private(set) var state = State.stopped
     private(set) var hasKey = false
+    private(set) var pairing = false
+    private(set) var pairingError: String?
     var preferred: Bool {
         didSet { UserDefaults.standard.set(preferred, forKey: Self.preferredKey) }
     }
@@ -58,6 +61,10 @@ import Security
     private var receiver: Task<Void, Never>?
     private var generation = UUID()
     private var stopping = false
+    /// The WebSocket's port, beside which the pairing server listens.
+    private var socketPort: UInt16?
+    /// Whether this run has tried signing Soloist in by itself, which it does once.
+    private var triedPairing = false
     private let session: URLSession = {
         // Loopback only: no proxy, no cookies, nothing kept.
         let configuration = URLSessionConfiguration.ephemeral
@@ -74,12 +81,14 @@ import Security
         state = hasKey ? .stopped : .notConfigured
     }
 
+    /// The same directories, in the same container, as the earlier Smalltify's: Soloist's device
+    /// identity and session live there, so its pairing, and the quality chosen for it, carry over.
     static var dataDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "Spotifly/Soloist", directoryHint: .isDirectory)
+        URL.applicationSupportDirectory.appending(path: "Smalltify/Soloist", directoryHint: .isDirectory)
     }
 
     static var cacheDirectory: URL {
-        URL.cachesDirectory.appending(path: "Spotifly/Soloist", directoryHint: .isDirectory)
+        URL.cachesDirectory.appending(path: "Smalltify/Soloist", directoryHint: .isDirectory)
     }
 
     /// The Soloist device to play on, when it is preferred, signed in and in the device list.
@@ -145,6 +154,9 @@ import Security
             for _ in 0 ..< 100 {
                 guard run == generation, child.isRunning else { throw SoloistError.didNotStart }
                 if let url = Self.socketURL() {
+                    socketPort = url.port.flatMap(UInt16.init(exactly:))
+                    triedPairing = false
+                    pairingError = nil
                     state = .waitingForPairing
                     receiver = Task { [weak self] in await self?.receive(from: url, run: run) }
                     return
@@ -177,7 +189,35 @@ import Security
             debugLog("Soloist", "Stopped")
         }
         process = nil
+        socketPort = nil
         state = hasKey ? .stopped : .notConfigured
+    }
+
+    /// Signs Soloist in with this app's login, when it is waiting for one.
+    func pair() async {
+        guard state == .waitingForPairing, !pairing, let socketPort else { return }
+        pairing = true
+        pairingError = nil
+        defer { pairing = false }
+        guard let login = StoredCredentialsStore().load() else {
+            pairingError = SoloistError.noLogin.localizedDescription
+            return
+        }
+        do {
+            try await SoloistPairing.pair(nextTo: socketPort, deviceName: Self.deviceName, login: login, session: session)
+            debugLog("Soloist", "Paired")
+        } catch {
+            debugLog("Soloist", "Pairing failed: \(error.localizedDescription)")
+            pairingError = error.localizedDescription
+        }
+    }
+
+    /// Forgets Soloist's device and session, and starts it again to sign in afresh. Spotify sees
+    /// a new device, whose quality is back to its default.
+    func reset() async {
+        await stop()
+        try? FileManager.default.removeItem(at: Self.dataDirectory)
+        await start()
     }
 
     // MARK: - Private
@@ -212,6 +252,10 @@ import Security
                     }
                     if let signedIn = Self.signedIn(fromEvent: data) {
                         state = signedIn ? .ready : .waitingForPairing
+                        if !signedIn, !triedPairing {
+                            triedPairing = true
+                            Task { await pair() }
+                        }
                     }
                     delay = 1
                 }
@@ -266,6 +310,7 @@ nonisolated enum SoloistError: LocalizedError {
     case didNotStart
     case expired
     case exited(Int)
+    case noLogin
 
     var errorDescription: String? {
         switch self {
@@ -274,6 +319,7 @@ nonisolated enum SoloistError: LocalizedError {
         case .didNotStart: String(localized: "soloist.error.did_not_start")
         case .expired: String(localized: "soloist.error.expired")
         case let .exited(status): String(localized: "soloist.error.exited \(status)")
+        case .noLogin: String(localized: "soloist.error.no_login")
         }
     }
 }

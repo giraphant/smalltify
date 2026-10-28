@@ -41,8 +41,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             endSearchEditing(onClickOf: event)
             return event
         }
-        // Soloist, the player that plays lossless, runs as long as the app does.
-        Task { await SoloistService.shared.start() }
+        // Soloist, the player that plays lossless, runs as long as the app does. After a
+        // relaunch, such as for a language change, only once the old instance has quit: both
+        // would use one data directory.
+        Task {
+            await Self.waitForEarlierInstance()
+            await SoloistService.shared.start()
+        }
     }
 
     /// Holds the quit until the player has shut down: it tells Spotify where playback
@@ -63,6 +68,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             allowTermination()
         }
         return .terminateLater
+    }
+
+    /// Waits, five seconds at most, until no other instance of this app runs.
+    private static func waitForEarlierInstance() async {
+        guard let identifier = Bundle.main.bundleIdentifier else { return }
+        for _ in 0 ..< 50 {
+            let others = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+                .filter { $0 != NSRunningApplication.current }
+            if others.isEmpty { return }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     private func allowTermination() {
@@ -135,7 +151,7 @@ struct SpotiflyApp: App {
             .onChange(of: appearanceMode, initial: true) { _, mode in
                 mode.apply()
             }
-            // The window that is open takes any `io.github.giraphant.spotifly://` URL, such as the
+            // The window that is open takes any `io.github.giraphant.smalltify://` URL, such as the
             // sign-in page's link back to the app. Unclaimed, each one opened a second
             // main window with its own services.
             .handlesExternalEvents(preferring: ["*"], allowing: ["*"])

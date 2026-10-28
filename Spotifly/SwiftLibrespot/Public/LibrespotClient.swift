@@ -128,7 +128,7 @@ public actor LibrespotClient {
     // MARK: - Initialization
 
     private init() {
-        deviceInfo = DeviceInfo.create(name: "Spotifly")
+        deviceInfo = DeviceInfo.create(name: "Smalltify (Built-in)")
         (snapshots, snapshotSink) = AsyncStream.makeStream(of: PlayerSnapshot.self, bufferingPolicy: .bufferingNewest(1))
         debugLog("LibrespotClient", "Created for device \(deviceInfo.deviceName) (\(deviceInfo.deviceId))")
     }

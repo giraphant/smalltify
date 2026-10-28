@@ -24,14 +24,14 @@ nonisolated enum KeychainManager {
     /// once enough releases have passed that no installed copy still holds one.
     static func purgeDashboardGrant() {
         for key in ["spotify_access_token", "spotify_refresh_token", "spotify_expires_at"] {
-            delete(key: key, service: "io.github.giraphant.spotifly.oauth")
+            delete(key: key, service: "io.github.giraphant.smalltify.oauth")
         }
-        delete(key: "spotify_custom_client_id", service: "io.github.giraphant.spotifly.config")
+        delete(key: "spotify_custom_client_id", service: "io.github.giraphant.smalltify.config")
     }
 
     // MARK: - Keymaster grant
 
-    private static let keymasterService = "io.github.giraphant.spotifly.keymaster"
+    private static let keymasterService = "io.github.giraphant.smalltify.keymaster"
     private static let keymasterTokensKey = "keymaster_tokens"
 
     /// Stored as one item rather than a key per field, which is how the Web API tokens were
@@ -59,8 +59,9 @@ nonisolated enum KeychainManager {
 
     // MARK: - Soloist API key
 
-    private static let soloistService = "io.github.giraphant.spotifly.soloist"
-    private static let soloistKeyKey = "api_key"
+    /// Where the earlier, Web API based Smalltify kept the key, so it carries over.
+    private static let soloistService = "io.github.giraphant.smalltify.official.v1"
+    private static let soloistKeyKey = "soloist-key"
 
     /// The developer API key Soloist needs to start, from the Spotify for Developers dashboard.
     static func saveSoloistKey(_ key: String) throws {

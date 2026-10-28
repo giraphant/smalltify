@@ -16,7 +16,7 @@ struct PreferencesView: View {
         TabView {
             Tab("preferences.general", systemImage: "gearshape") {
                 GeneralSettingsView()
-                    .settingsPage(height: 90)
+                    .settingsPage(height: 170)
             }
 
             Tab("preferences.playback", systemImage: "speaker.wave.3") {
@@ -47,6 +47,7 @@ private extension View {
 
 private struct GeneralSettingsView: View {
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
+    @State private var language = AppLanguage.current
 
     var body: some View {
         Form {
@@ -62,6 +63,22 @@ private struct GeneralSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Picker("preferences.language", selection: $language) {
+                Text("preferences.language.system").tag(AppLanguage.system)
+                ForEach(AppLanguage.allCases.filter { $0 != .system }) { language in
+                    Text(verbatim: language.nativeName).tag(language)
+                }
+            }
+            .onChange(of: language) { _, language in language.apply() }
+
+            if language != AppLanguage.atLaunch {
+                LabeledContent {
+                    Button("preferences.language.restart") { AppLanguage.relaunch() }
+                } label: {
+                    Text("preferences.language.restart_note").foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)

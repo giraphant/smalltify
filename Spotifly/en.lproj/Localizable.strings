@@ -1,8 +1,8 @@
 /* App */
-"app.name" = "Spotifly";
+"app.name" = "Smalltify";
 
 /* Authentication */
-"auth.connect.description" = "Connect your Spotify account to get started. This authorizes Spotifly in your browser and makes this Mac available as a Spotify Connect device.";
+"auth.connect.description" = "Connect your Spotify account to get started. This authorizes Smalltify in your browser and makes this Mac available as a Spotify Connect device.";
 "auth.connect.button" = "Connect with Spotify";
 "auth.loading" = "Loading...";
 "auth.logout" = "Log Out";
@@ -200,9 +200,9 @@
 "speakers.audio_output" = "AirPlay";
 "speakers.airplay_in_bar" = "Choose a receiver with the AirPlay button in the player bar.";
 "speakers.spotify_connect" = "Spotify Connect";
-"speakers.airplay_hint" = "Sends only Spotifly to the receiver; the rest of the Mac's sound stays here. The receiver's volume is set in the AirPlay menu.";
+"speakers.airplay_hint" = "Sends only Smalltify to the receiver; the rest of the Mac's sound stays here. The receiver's volume is set in the AirPlay menu.";
 "now_playing.airplay" = "AirPlay";
-"speakers.airplay_disabled_hint" = "AirPlay is only available when Spotifly is the active device";
+"speakers.airplay_disabled_hint" = "AirPlay is only available when Smalltify is the active device";
 "speakers.spotify_connect_hint" = "Shows every device connected to your account right now.";
 
 /* Volume */
@@ -232,6 +232,10 @@
 "preferences.appearance.system" = "System";
 "preferences.appearance.light" = "Light";
 "preferences.appearance.dark" = "Dark";
+"preferences.language" = "Language";
+"preferences.language.system" = "System";
+"preferences.language.restart_note" = "Smalltify uses the new language after it restarts.";
+"preferences.language.restart" = "Restart Now";
 "preferences.playback" = "Playback";
 "preferences.shortcuts" = "Shortcuts";
 "preferences.shortcut.sidebar" = "Show/Hide Sidebar";
@@ -249,17 +253,27 @@
 "preferences.soloist.stop" = "Stop";
 "preferences.soloist.save_start" = "Save and Start";
 "preferences.soloist.save_restart" = "Save and Restart";
-"preferences.soloist.footer" = "Spotify plays lossless only through its own players, and Soloist is one. Choose “Spotifly Soloist” once in the Spotify app’s device list to sign it in, then pick Lossless in its quality settings there.";
+"preferences.soloist.footer" = "Spotify plays lossless only through its own players, and Soloist is one. Smalltify signs it in with your account; choose Lossless for “Smalltify” once in the Spotify app’s device list.";
 "preferences.soloist.state.not_configured" = "Needs an API key";
 "preferences.soloist.state.stopped" = "Stopped";
 "preferences.soloist.state.starting" = "Starting…";
-"preferences.soloist.state.pairing" = "Waiting to be chosen in the Spotify app";
+"preferences.soloist.state.pairing" = "Not signed in";
 "preferences.soloist.state.ready" = "Ready";
 "soloist.error.missing" = "This build has no Soloist in it.";
 "soloist.error.untrusted" = "Soloist failed its integrity check, so it was not started.";
 "soloist.error.did_not_start" = "Soloist did not start. Check the API key.";
 "soloist.error.expired" = "This Soloist build has expired. A new one is needed.";
 "soloist.error.exited %lld" = "Soloist stopped (status %lld).";
+"preferences.soloist.pair" = "Sign In Here";
+"preferences.soloist.pairing" = "Signing In…";
+"preferences.soloist.reset" = "Reset Soloist…";
+"preferences.soloist.reset.title" = "Reset Soloist?";
+"preferences.soloist.reset.message" = "Soloist becomes a new device and signs in again here. Its quality goes back to the default, so choose Lossless for it again in the Spotify app.";
+"preferences.soloist.reset.action" = "Reset";
+"soloist.error.no_login" = "Sign in to Smalltify first: Soloist signs in with the same account.";
+"soloist.error.not_reached" = "Could not reach Soloist to sign it in.";
+"soloist.error.unsupported %@" = "Soloist asks for a kind of sign-in this app cannot give (%@). Choose “Smalltify” once in the Spotify app’s device list instead.";
+"soloist.error.refused %@" = "Soloist refused the sign-in (%@). Choose “Smalltify” once in the Spotify app’s device list instead.";
 
 /* Album Context Menu & Alerts */
 "album.remove.title" = "Remove from Library";

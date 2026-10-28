@@ -74,19 +74,25 @@ struct LocalizationTests {
         #expect(unused.sorted() == [])
     }
 
-    /// A count of one is singular, "1 track" where it said "1 tracks". And a count is not grouped,
-    /// "1007" rather than "1.007", which formatting for the key's locale would do.
+    /// A count of one is singular, "1 track" where it said "1 tracks". Each language by its own
+    /// rules, which the key's locale has to name: the app's would be the machine's language's.
     @Test(arguments: [
         ("en", 1, "1 track"), ("en", 2, "2 tracks"),
-        ("de", 1, "1 Track"), ("de", 1007, "1007 Tracks"),
+        ("de", 1, "1 Track"), ("de", 2, "2 Tracks"),
         ("fr", 1, "1 titre"), ("fr", 2, "2 titres"),
+        ("zh-Hans", 1, "1 首歌曲"), ("zh-Hans", 2, "2 首歌曲"),
     ])
     @MainActor
     func `a track count takes the language's plural`(language: String, count: Int, expected: String) {
         var key = LocalizedStringResource("metadata.tracks")
         key.locale = Locale(identifier: language)
 
-        #expect(localizedNumberString(key, count) == expected)
+        #expect(localizedNumberString(key, count, pluralLocale: key.locale) == expected)
+    }
+
+    /// And a count is not grouped, "1007" rather than "1.007", which formatting for a locale does.
+    @Test @MainActor func `a track count is not grouped`() {
+        #expect(localizedNumberString("metadata.tracks", 1007).hasPrefix("1007"))
     }
 
     @Test(arguments: Bundle.main.localizations.filter { $0 != "en" && $0 != "Base" })

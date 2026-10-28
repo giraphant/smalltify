@@ -1,8 +1,8 @@
 /* App */
-"app.name" = "Spotifly";
+"app.name" = "Smalltify";
 
 /* Authentication */
-"auth.connect.description" = "Connectez votre compte Spotify pour commencer. Cela autorise Spotifly dans votre navigateur et rend ce Mac disponible comme appareil Spotify Connect.";
+"auth.connect.description" = "Connectez votre compte Spotify pour commencer. Cela autorise Smalltify dans votre navigateur et rend ce Mac disponible comme appareil Spotify Connect.";
 "auth.connect.button" = "Se connecter avec Spotify";
 "auth.loading" = "Chargement...";
 "auth.logout" = "Se déconnecter";
@@ -200,9 +200,9 @@
 "speakers.audio_output" = "AirPlay";
 "speakers.airplay_in_bar" = "Choisissez un récepteur avec le bouton AirPlay de la barre de lecture.";
 "speakers.spotify_connect" = "Spotify Connect";
-"speakers.airplay_hint" = "N'envoie que Spotifly au récepteur ; les autres sons restent sur ce Mac. Le volume du récepteur se règle dans le menu AirPlay.";
+"speakers.airplay_hint" = "N'envoie que Smalltify au récepteur ; les autres sons restent sur ce Mac. Le volume du récepteur se règle dans le menu AirPlay.";
 "now_playing.airplay" = "AirPlay";
-"speakers.airplay_disabled_hint" = "AirPlay est uniquement disponible lorsque Spotifly est l'appareil actif";
+"speakers.airplay_disabled_hint" = "AirPlay est uniquement disponible lorsque Smalltify est l'appareil actif";
 "speakers.spotify_connect_hint" = "Affiche tous les appareils connectés à votre compte en ce moment.";
 
 /* Volume */
@@ -232,6 +232,10 @@
 "preferences.appearance.system" = "Système";
 "preferences.appearance.light" = "Clair";
 "preferences.appearance.dark" = "Sombre";
+"preferences.language" = "Langue";
+"preferences.language.system" = "Système";
+"preferences.language.restart_note" = "Smalltify utilise la nouvelle langue après un redémarrage.";
+"preferences.language.restart" = "Redémarrer maintenant";
 "preferences.playback" = "Lecture";
 "preferences.shortcuts" = "Raccourcis";
 "preferences.shortcut.sidebar" = "Afficher/masquer la barre latérale";
@@ -249,17 +253,27 @@
 "preferences.soloist.stop" = "Arrêter";
 "preferences.soloist.save_start" = "Enregistrer et démarrer";
 "preferences.soloist.save_restart" = "Enregistrer et redémarrer";
-"preferences.soloist.footer" = "Spotify ne lit en sans perte que via ses propres lecteurs, et Soloist en est un. Choisissez « Spotifly Soloist » une fois dans la liste des appareils de l’app Spotify pour le connecter, puis sélectionnez Sans perte dans ses réglages de qualité.";
+"preferences.soloist.footer" = "Spotify ne lit en sans perte que via ses propres lecteurs, et Soloist en est un. Smalltify le connecte avec votre compte ; choisissez Sans perte pour « Smalltify » une fois dans la liste des appareils de l’app Spotify.";
 "preferences.soloist.state.not_configured" = "Clé d’API requise";
 "preferences.soloist.state.stopped" = "Arrêté";
 "preferences.soloist.state.starting" = "Démarrage…";
-"preferences.soloist.state.pairing" = "En attente de sélection dans l’app Spotify";
+"preferences.soloist.state.pairing" = "Non connecté";
 "preferences.soloist.state.ready" = "Prêt";
 "soloist.error.missing" = "Ce build ne contient pas Soloist.";
 "soloist.error.untrusted" = "Soloist n’a pas passé le contrôle d’intégrité et n’a pas été lancé.";
 "soloist.error.did_not_start" = "Soloist n’a pas démarré. Vérifiez la clé d’API.";
 "soloist.error.expired" = "Ce build de Soloist a expiré. Il en faut un nouveau.";
 "soloist.error.exited %lld" = "Soloist s’est arrêté (état %lld).";
+"preferences.soloist.pair" = "Se connecter ici";
+"preferences.soloist.pairing" = "Connexion…";
+"preferences.soloist.reset" = "Réinitialiser Soloist…";
+"preferences.soloist.reset.title" = "Réinitialiser Soloist ?";
+"preferences.soloist.reset.message" = "Soloist devient un nouvel appareil et se reconnecte ici. Sa qualité revient au réglage par défaut : choisissez à nouveau Sans perte dans l’app Spotify.";
+"preferences.soloist.reset.action" = "Réinitialiser";
+"soloist.error.no_login" = "Connectez-vous d’abord à Smalltify : Soloist utilise le même compte.";
+"soloist.error.not_reached" = "Impossible de joindre Soloist pour le connecter.";
+"soloist.error.unsupported %@" = "Soloist demande un type de connexion que cette app ne peut pas fournir (%@). Choisissez plutôt « Smalltify » une fois dans la liste des appareils de l’app Spotify.";
+"soloist.error.refused %@" = "Soloist a refusé la connexion (%@). Choisissez plutôt « Smalltify » une fois dans la liste des appareils de l’app Spotify.";
 
 /* Album Context Menu & Alerts */
 "album.remove.title" = "Retirer de la Bibliothèque";
