@@ -1,0 +1,32 @@
+{
+  "provider": "OpenAI built-in image_gen (specific model not exposed)",
+  "constraintMode": "main-prompt constraints",
+  "prompts": "prompts.json",
+  "preservation": "Original images preserved unchanged",
+  "candidates": [
+    {
+      "label": "H1",
+      "direction": "暖棕画眉",
+      "rationale": "以画眉的眼圈和眉纹表现鸣禽身份",
+      "corner": "lower-left",
+      "background": "#B8CFCA muted sage teal",
+      "body": "#A97247 warm chestnut brown",
+      "secondary": "#F7E8BE cream ivory",
+      "file": "H1.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "H2",
+      "direction": "薄荷画眉",
+      "rationale": "以画眉的眼圈和眉纹结合 Smalltify 的绿色",
+      "corner": "lower-right",
+      "background": "#BEC7DF muted periwinkle blue",
+      "body": "#52D4A1 mint jade green",
+      "secondary": "#224D43 deep pine green",
+      "file": "H2.png",
+      "width": 1254,
+      "height": 1254
+    }
+  ]
+}

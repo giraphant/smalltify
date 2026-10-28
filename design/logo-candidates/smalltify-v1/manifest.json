@@ -1,0 +1,73 @@
+{
+  "generation": "OpenAI built-in image_gen; model name not exposed",
+  "skill": "https://github.com/s1dashu/ip-as-logo-skill/blob/main/SKILL.md",
+  "constraintMode": "main-prompt constraints",
+  "prompts": "prompts.json",
+  "preservation": "Native generated originals; no resampling or post-processing",
+  "candidates": [
+    {
+      "label": "A1",
+      "direction": "听歌小鸟",
+      "rationale": "轻快、音乐陪伴",
+      "assignedCorner": "lower-left",
+      "file": "A1.png",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "background": "#C5C2E2 muted periwinkle",
+      "characterColors": [
+        "#39C878 leaf green",
+        "#153D33 deep forest green"
+      ]
+    },
+    {
+      "label": "A2",
+      "direction": "听歌小鸟",
+      "rationale": "轻快、音乐陪伴",
+      "assignedCorner": "lower-right",
+      "file": "A2.png",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "background": "#AECDBF muted sage mint",
+      "characterColors": [
+        "#F4D66E butter yellow",
+        "#245943 dark pine green"
+      ]
+    },
+    {
+      "label": "B1",
+      "direction": "耳机小精灵",
+      "rationale": "专注听歌、安静陪伴",
+      "assignedCorner": "lower-left",
+      "file": "B1.png",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "background": "#B9CBE0 muted powder blue",
+      "characterColors": [
+        "#42D59B mint jade",
+        "#193C44 deep petrol"
+      ]
+    },
+    {
+      "label": "B2",
+      "direction": "耳机小精灵",
+      "rationale": "专注听歌、安静陪伴",
+      "assignedCorner": "lower-right",
+      "file": "B2.png",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "background": "#D8BAA9 muted warm apricot",
+      "characterColors": [
+        "#285B45 pine green",
+        "#D9EE9C pale citron"
+      ]
+    }
+  ]
+}

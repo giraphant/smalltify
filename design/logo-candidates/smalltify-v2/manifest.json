@@ -1,0 +1,97 @@
+{
+  "provider": "OpenAI built-in image_gen (specific model not exposed)",
+  "constraintMode": "main-prompt constraints",
+  "prompts": "prompts.json",
+  "preservation": "Originals preserved without post-processing",
+  "rationale": "Smalltify: a small, native music companion represented by a quiet headphone sprite",
+  "candidates": [
+    {
+      "label": "C1",
+      "direction": "B1 清爽系",
+      "corner": "lower-left",
+      "background": "#B9CBE0 muted powder blue",
+      "body": "#42D59B mint jade",
+      "headphones": "#193C44 deep petrol",
+      "file": "C1.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "C2",
+      "direction": "B1 清爽系",
+      "corner": "lower-right",
+      "background": "#C0D5D7 muted sea mist",
+      "body": "#73DFBC soft jade",
+      "headphones": "#214A56 deep blue teal",
+      "file": "C2.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "C3",
+      "direction": "B1 清爽系",
+      "corner": "lower-left",
+      "background": "#BBBFD9 muted periwinkle blue",
+      "body": "#42CFA0 fresh jade",
+      "headphones": "#203D50 midnight blue",
+      "file": "C3.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "W1",
+      "direction": "B2 暖色系",
+      "corner": "lower-right",
+      "background": "#D8BAA9 muted warm apricot",
+      "body": "#285B45 pine green",
+      "headphones": "#D9EE9C pale citron",
+      "file": "W1.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "W2",
+      "direction": "B2 暖色系",
+      "corner": "lower-left",
+      "background": "#D6B8AC muted peach rose",
+      "body": "#245341 deep evergreen",
+      "headphones": "#E6DEA2 pale butter yellow",
+      "file": "W2.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "W3",
+      "direction": "B2 暖色系",
+      "corner": "lower-right",
+      "background": "#CBAF99 muted warm biscuit",
+      "body": "#34664E fern green",
+      "headphones": "#D3E893 pale lime",
+      "file": "W3.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "M1",
+      "direction": "融合：B1 轮廓＋B2 配色",
+      "corner": "lower-left",
+      "background": "#D8BAA9 muted warm apricot",
+      "body": "#285B45 pine green",
+      "headphones": "#D9EE9C pale citron",
+      "file": "M1.png",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "label": "M2",
+      "direction": "融合：B1 轮廓＋B2 配色",
+      "corner": "lower-right",
+      "background": "#D8BAA9 muted warm apricot",
+      "body": "#285B45 pine green",
+      "headphones": "#D9EE9C pale citron",
+      "file": "M2.png",
+      "width": 1254,
+      "height": 1254
+    }
+  ]
+}
