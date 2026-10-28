@@ -239,6 +239,27 @@
 "preferences.streaming_quality" = "Qualité audio";
 "preferences.gapless_playback" = "Lecture en continu";
 "preferences.restart_note" = "Les modifications prennent effet au redémarrage de la lecture.";
+"preferences.soloist" = "Soloist (sans perte)";
+"preferences.soloist.key" = "Clé d’API";
+"preferences.soloist.key_saved" = "Enregistrée dans le trousseau ; laisser vide pour la conserver";
+"preferences.soloist.key_prompt" = "Clé d’API Soloist du tableau de bord développeur";
+"preferences.soloist.prefer" = "Lire via Soloist";
+"preferences.soloist.cache" = "Cache";
+"preferences.soloist.status" = "État";
+"preferences.soloist.stop" = "Arrêter";
+"preferences.soloist.save_start" = "Enregistrer et démarrer";
+"preferences.soloist.save_restart" = "Enregistrer et redémarrer";
+"preferences.soloist.footer" = "Spotify ne lit en sans perte que via ses propres lecteurs, et Soloist en est un. Choisissez « Spotifly Soloist » une fois dans la liste des appareils de l’app Spotify pour le connecter, puis sélectionnez Sans perte dans ses réglages de qualité.";
+"preferences.soloist.state.not_configured" = "Clé d’API requise";
+"preferences.soloist.state.stopped" = "Arrêté";
+"preferences.soloist.state.starting" = "Démarrage…";
+"preferences.soloist.state.pairing" = "En attente de sélection dans l’app Spotify";
+"preferences.soloist.state.ready" = "Prêt";
+"soloist.error.missing" = "Ce build ne contient pas Soloist.";
+"soloist.error.untrusted" = "Soloist n’a pas passé le contrôle d’intégrité et n’a pas été lancé.";
+"soloist.error.did_not_start" = "Soloist n’a pas démarré. Vérifiez la clé d’API.";
+"soloist.error.expired" = "Ce build de Soloist a expiré. Il en faut un nouveau.";
+"soloist.error.exited %lld" = "Soloist s’est arrêté (état %lld).";
 
 /* Album Context Menu & Alerts */
 "album.remove.title" = "Retirer de la Bibliothèque";

@@ -239,6 +239,27 @@
 "preferences.streaming_quality" = "Streaming-Qualität";
 "preferences.gapless_playback" = "Lückenlose Wiedergabe";
 "preferences.restart_note" = "Änderungen werden bei Neustart der Wiedergabe wirksam.";
+"preferences.soloist" = "Soloist (verlustfrei)";
+"preferences.soloist.key" = "API-Schlüssel";
+"preferences.soloist.key_saved" = "Im Schlüsselbund gesichert; leer lassen, um ihn zu behalten";
+"preferences.soloist.key_prompt" = "Soloist-API-Schlüssel aus dem Developer Dashboard";
+"preferences.soloist.prefer" = "Über Soloist abspielen";
+"preferences.soloist.cache" = "Cache";
+"preferences.soloist.status" = "Status";
+"preferences.soloist.stop" = "Stoppen";
+"preferences.soloist.save_start" = "Sichern und starten";
+"preferences.soloist.save_restart" = "Sichern und neu starten";
+"preferences.soloist.footer" = "Verlustfrei spielt Spotify nur über seine eigenen Player, und Soloist ist einer davon. Wähle „Spotifly Soloist“ einmal in der Geräteliste der Spotify-App, um es anzumelden, und stelle dort in seinen Qualitätseinstellungen „Verlustfrei“ ein.";
+"preferences.soloist.state.not_configured" = "API-Schlüssel fehlt";
+"preferences.soloist.state.stopped" = "Gestoppt";
+"preferences.soloist.state.starting" = "Startet …";
+"preferences.soloist.state.pairing" = "Wartet auf Auswahl in der Spotify-App";
+"preferences.soloist.state.ready" = "Bereit";
+"soloist.error.missing" = "In diesem Build fehlt Soloist.";
+"soloist.error.untrusted" = "Soloist hat die Integritätsprüfung nicht bestanden und wurde nicht gestartet.";
+"soloist.error.did_not_start" = "Soloist ist nicht gestartet. Prüfe den API-Schlüssel.";
+"soloist.error.expired" = "Dieser Soloist-Build ist abgelaufen. Ein neuer wird benötigt.";
+"soloist.error.exited %lld" = "Soloist wurde beendet (Status %lld).";
 
 /* Album Context Menu & Alerts */
 "album.remove.title" = "Aus Bibliothek entfernen";

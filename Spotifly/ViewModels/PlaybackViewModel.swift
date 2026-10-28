@@ -507,11 +507,16 @@ final class PlaybackViewModel {
 
     /// Decides where to play.
     ///
-    /// Local wins when it exists; otherwise an active remote device serves the request over
-    /// connect-state. Only when neither exists is there anything to tell the user —
-    /// nagging about local streaming while a phone is playing would be noise — and what
-    /// depends on why this Mac cannot play.
-    nonisolated static func playbackTarget(local: LocalPlayback, activeDeviceId: String?) -> PlaybackTarget {
+    /// A preferred device wins: Soloist, when it runs here, since it plays lossless and this
+    /// app's own player cannot (`SoloistService`). Then local, when it exists; otherwise an
+    /// active remote device serves the request over connect-state. Only when none exists is
+    /// there anything to tell the user — nagging about local streaming while a phone is
+    /// playing would be noise — and what depends on why this Mac cannot play.
+    nonisolated static func playbackTarget(local: LocalPlayback, activeDeviceId: String?,
+                                           preferredDeviceId: String? = nil) -> PlaybackTarget {
+        if let preferredDeviceId {
+            return .remote(deviceId: preferredDeviceId)
+        }
         if local == .ready {
             return .local
         }
@@ -664,7 +669,8 @@ final class PlaybackViewModel {
     /// phone is no longer offered and `.needsAuthorization` is the honest answer. Enabling
     /// playback is also the fix, which is what the alert already says.
     private func resolvedPlaybackTarget() -> PlaybackTarget {
-        Self.playbackTarget(local: localPlayback, activeDeviceId: player.activeDeviceId)
+        Self.playbackTarget(local: localPlayback, activeDeviceId: player.activeDeviceId,
+                            preferredDeviceId: SoloistService.shared.preferredDeviceId(in: player.devices))
     }
 
     /// Says why a play found nowhere to go. Without a session, by offering to authorize.

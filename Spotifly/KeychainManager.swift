@@ -10,9 +10,8 @@ import Security
 
 /// Manages secure storage of authentication tokens in the Keychain
 nonisolated enum KeychainManager {
-    /// Shared keychain access group - allows both dev and release builds to access the same items
-    /// Format: TeamID.groupName (must match keychain-access-groups in entitlements)
-    private static let accessGroup = "89S4HZY343.com.spotifly.keychain"
+    // This fork signs with its own team, so it keeps its own items under the default Keychain
+    // access control rather than upstream's shared access group.
 
     // MARK: - The dashboard grant, which no longer exists
 
@@ -25,14 +24,14 @@ nonisolated enum KeychainManager {
     /// once enough releases have passed that no installed copy still holds one.
     static func purgeDashboardGrant() {
         for key in ["spotify_access_token", "spotify_refresh_token", "spotify_expires_at"] {
-            delete(key: key, service: "com.spotifly.oauth")
+            delete(key: key, service: "io.github.giraphant.spotifly.oauth")
         }
-        delete(key: "spotify_custom_client_id", service: "com.spotifly.config")
+        delete(key: "spotify_custom_client_id", service: "io.github.giraphant.spotifly.config")
     }
 
     // MARK: - Keymaster grant
 
-    private static let keymasterService = "com.spotifly.keymaster"
+    private static let keymasterService = "io.github.giraphant.spotifly.keymaster"
     private static let keymasterTokensKey = "keymaster_tokens"
 
     /// Stored as one item rather than a key per field, which is how the Web API tokens were
@@ -56,6 +55,20 @@ nonisolated enum KeychainManager {
 
     static func clearKeymasterTokens() {
         delete(key: keymasterTokensKey, service: keymasterService)
+    }
+
+    // MARK: - Soloist API key
+
+    private static let soloistService = "io.github.giraphant.spotifly.soloist"
+    private static let soloistKeyKey = "api_key"
+
+    /// The developer API key Soloist needs to start, from the Spotify for Developers dashboard.
+    static func saveSoloistKey(_ key: String) throws {
+        try save(key: soloistKeyKey, data: Data(key.utf8), service: soloistService)
+    }
+
+    static func loadSoloistKey() -> String? {
+        load(key: soloistKeyKey, service: soloistService).flatMap { String(data: $0, encoding: .utf8) }
     }
 
     // MARK: - Private Keychain Operations
@@ -111,7 +124,6 @@ nonisolated enum KeychainManager {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecAttrAccessGroup as String: accessGroup,
         ]
     }
 }

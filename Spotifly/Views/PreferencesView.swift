@@ -21,7 +21,7 @@ struct PreferencesView: View {
 
             Tab("preferences.playback", systemImage: "speaker.wave.3") {
                 PlaybackSettingsView()
-                    .settingsPage(height: 170)
+                    .settingsPage(height: 470)
             }
 
             Tab("preferences.shortcuts", systemImage: "command") {
@@ -99,6 +99,8 @@ private struct PlaybackSettingsView: View {
             } footer: {
                 Text("preferences.restart_note")
             }
+
+            SoloistSettingsSection()
         }
         .formStyle(.grouped)
         .scrollDisabled(true)

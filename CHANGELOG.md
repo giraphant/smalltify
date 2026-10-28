@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Soloist plays, lossless included.** Spotify hands the keys to its lossless files only to its own players, through its DRM, so this app's player stays at Ogg Vorbis 320 kbit/s. Spotify Soloist is one of Spotify's own players: the app now runs the pinned Soloist 1.3.10.19 beside it as a Connect device named "Spotifly Soloist" (`SoloistService`), and while it is signed in and "Play through Soloist" is on, every play goes to it over connect-state (`PlaybackViewModel.playbackTarget` takes a preferred device before this Mac), so the app browses and controls while Soloist plays. Settings → Playback has its API key, kept in the Keychain, the switch, its cache size (10 GB by default) and its state. It is chosen once in an official Spotify app's device list to sign in, and its quality, Lossless included, is set there, as for any Connect device. It starts with the app and stops with it. The binary is never fetched: `make build` verifies a manually downloaded copy against its SHA-256 and Spotify's signature, and stages it for this Mac only (`FORK.md`).
+
+### Changed
+- This fork builds and signs under its own identity, `io.github.giraphant.spotifly`, with its own Keychain items and URL scheme, beside upstream's Spotifly and Smalltify.
+
 ## [1.4.0] - 2026-10-24
 
 ### Changed

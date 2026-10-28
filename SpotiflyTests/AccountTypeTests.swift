@@ -87,4 +87,21 @@ struct PlaybackTargetTests {
     @Test func `without a session, with nothing active, the play asks for authorization`() {
         #expect(PlaybackViewModel.playbackTarget(local: .needsAuthorization, activeDeviceId: nil) == .needsAuthorization)
     }
+
+    @Test func `a preferred device takes a play over this Mac and over the active one`() {
+        for local in [PlaybackViewModel.LocalPlayback.ready, .needsPremium, .needsAuthorization] {
+            #expect(PlaybackViewModel.playbackTarget(local: local, activeDeviceId: "phone", preferredDeviceId: "soloist")
+                == .remote(deviceId: "soloist"))
+        }
+    }
+}
+
+struct SoloistEventTests {
+    @Test func `only auth_state says whether Soloist is signed in`() {
+        #expect(SoloistService.signedIn(fromEvent: Data(#"{"type":"auth_state","logged_in":true}"#.utf8)) == true)
+        #expect(SoloistService.signedIn(fromEvent: Data(#"{"type":"auth_state","logged_in":false}"#.utf8)) == false)
+        #expect(SoloistService.signedIn(fromEvent: Data(#"{"type":"auth_state"}"#.utf8)) == false)
+        #expect(SoloistService.signedIn(fromEvent: Data(#"{"type":"playback_state","is_active":true}"#.utf8)) == nil)
+        #expect(SoloistService.signedIn(fromEvent: Data("not json".utf8)) == nil)
+    }
 }

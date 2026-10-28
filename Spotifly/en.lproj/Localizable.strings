@@ -239,6 +239,27 @@
 "preferences.streaming_quality" = "Streaming Quality";
 "preferences.gapless_playback" = "Gapless Playback";
 "preferences.restart_note" = "Changes take effect when playback restarts.";
+"preferences.soloist" = "Soloist (Lossless)";
+"preferences.soloist.key" = "API Key";
+"preferences.soloist.key_saved" = "Saved in the Keychain; leave empty to keep it";
+"preferences.soloist.key_prompt" = "Soloist API key from the developer dashboard";
+"preferences.soloist.prefer" = "Play through Soloist";
+"preferences.soloist.cache" = "Cache";
+"preferences.soloist.status" = "Status";
+"preferences.soloist.stop" = "Stop";
+"preferences.soloist.save_start" = "Save and Start";
+"preferences.soloist.save_restart" = "Save and Restart";
+"preferences.soloist.footer" = "Spotify plays lossless only through its own players, and Soloist is one. Choose “Spotifly Soloist” once in the Spotify app’s device list to sign it in, then pick Lossless in its quality settings there.";
+"preferences.soloist.state.not_configured" = "Needs an API key";
+"preferences.soloist.state.stopped" = "Stopped";
+"preferences.soloist.state.starting" = "Starting…";
+"preferences.soloist.state.pairing" = "Waiting to be chosen in the Spotify app";
+"preferences.soloist.state.ready" = "Ready";
+"soloist.error.missing" = "This build has no Soloist in it.";
+"soloist.error.untrusted" = "Soloist failed its integrity check, so it was not started.";
+"soloist.error.did_not_start" = "Soloist did not start. Check the API key.";
+"soloist.error.expired" = "This Soloist build has expired. A new one is needed.";
+"soloist.error.exited %lld" = "Soloist stopped (status %lld).";
 
 /* Album Context Menu & Alerts */
 "album.remove.title" = "Remove from Library";

@@ -32,3 +32,6 @@ plans.md
 
 # Release artifacts
 *.zip
+
+# Local signing configuration
+Makefile.local
