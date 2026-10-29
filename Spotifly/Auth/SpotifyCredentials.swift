@@ -29,6 +29,12 @@ nonisolated struct SpotifyCredentials: Sendable {
     /// like the client's own.
     static let appPlatform = "OSX_ARM64"
     static let origin = "https://xpui.app.spotify.com"
+    /// librespot's form: the desktop version the accesspoint login announces, then this app.
+    /// Not left to URLSession, whose default leads with the bundle name: Pathfinder answers every
+    /// operation `403 Client/request not allowed` unless the agent starts with "Spoti", which
+    /// upstream's "Spotifly/…" did by luck and "Smalltify/…" does not (measured 2026-10-29).
+    static let userAgent = "Spotify/\(Accesspoint.spotifyVersionCode) \(appPlatform)/0 "
+        + "(\(Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "Smalltify") \(DeviceInfo.appVersion))"
 
     /// Hoisted out of the default-argument lists that name it, where a closure literal is not
     /// isolation-checked: written inline, the hop onto `ClientTokenProvider` goes unnoticed and
@@ -53,6 +59,7 @@ nonisolated struct SpotifyCredentials: Sendable {
     /// client is asking. Both, always — the bearer identifies the user, the client token the
     /// application, and these hosts want to see both.
     private func sign(_ request: inout URLRequest) async throws {
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(Self.appPlatform, forHTTPHeaderField: "App-Platform")
         request.setValue(Self.origin, forHTTPHeaderField: "Origin")
         request.setValue(Self.origin, forHTTPHeaderField: "Referer")

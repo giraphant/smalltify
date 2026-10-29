@@ -76,6 +76,8 @@ struct PathfinderRequestTests {
         #expect(request.value(forHTTPHeaderField: "Client-Token") == "the-client-token")
         #expect(request.value(forHTTPHeaderField: "App-Platform") == "OSX_ARM64")
         #expect(request.value(forHTTPHeaderField: "Origin") == "https://xpui.app.spotify.com")
+        // Any other first word, the bundle name URLSession would send included, is a 403.
+        #expect(request.value(forHTTPHeaderField: "User-Agent")?.hasPrefix("Spotify/") == true)
         #expect(request.httpMethod == "POST")
     }
 }

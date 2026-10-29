@@ -65,7 +65,7 @@ public actor Accesspoint {
     }
 
     /// Spotify version code (matching librespot-rs)
-    private static let spotifyVersionCode: UInt64 = 124_200_290
+    static let spotifyVersionCode: UInt64 = 124_200_290
 
     /// Version string (matching librespot-rs format)
     private static let versionString = "librespot 0.8.0"
