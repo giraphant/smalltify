@@ -5,7 +5,6 @@
 //  Runs Spotify Soloist beside the app, as the Connect device that plays lossless.
 //
 
-import CryptoKit
 import Foundation
 import Observation
 import Security
@@ -26,9 +25,6 @@ import Security
 
     /// The name it has in every device list, and how this app finds it in the cluster's.
     static let deviceName = "Smalltify"
-    static let version = "1.3.10.19"
-    /// The one build this app runs; `scripts/stage-soloist.py` checks the same digest.
-    static let binarySHA256 = "3317fccefe7ea2379f9caad6d0c9daddecf69f82736d874c68fd4f464d5aab94"
     static let cacheSizesGB = [2, 5, 10, 20]
 
     enum State: Equatable {
@@ -288,15 +284,14 @@ import Security
             : SoloistError.exited(Int(status)).localizedDescription)
     }
 
-    /// Runs only the pinned build, still carrying Spotify's own signature.
+    /// Runs only a build carrying Spotify's own signature, as `scripts/stage-soloist.py` checks it.
+    /// Not a pinned hash: Spotify rebuilds Soloist every few days, and each build expires 90 days on.
     private static func verify(_ url: URL) throws {
-        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { throw SoloistError.missing }
-        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard FileManager.default.isExecutableFile(atPath: url.path) else { throw SoloistError.missing }
         var code: SecStaticCode?
         var requirement: SecRequirement?
         let rule = #"anchor apple generic and identifier "com.spotify.soloist" and certificate leaf[subject.OU] = "2FNC3A47ZF""#
-        guard digest == binarySHA256,
-              SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess,
+        guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess,
               SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
               let code, let requirement,
               SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSStrictValidate), requirement) == errSecSuccess

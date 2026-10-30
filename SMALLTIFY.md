@@ -22,10 +22,13 @@ Measured 2026-10-28: about 634 and 1330 kbit/s per track, where 320 kbit/s Ogg c
 
 ## Build
 
-1. Download Soloist for macOS from https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates
-   and put `soloist` (and `THIRD_PARTY_LICENSES.txt`) in `build/soloist/`. Nothing is fetched by
-   the build; `scripts/stage-soloist.py` refuses any binary but the pinned 1.3.10.19 with
-   Spotify's signature.
+1. `make fetch-soloist` downloads the current Soloist for macOS from Spotify's official address,
+   the one https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates
+   links, into `build/soloist/`. `scripts/stage-soloist.py` accepts any build that carries
+   Spotify's own signature (`com.spotify.soloist`, team `2FNC3A47ZF`) and refuses everything
+   else. It does not pin a hash: Spotify rebuilds Soloist every few days and a build expires 90
+   days after it is signed (exit status 10), so the script prints that date and warns two weeks
+   ahead; fetch again then.
 2. `make build` builds, stages Soloist into `Contents/Helpers`, and signs with the Developer ID
    in the Makefile (override it in `Makefile.local`). The first signing asks the Keychain for the
    key; "Always Allow" keeps later builds from asking.
