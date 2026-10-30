@@ -48,7 +48,9 @@ import Security
         didSet { UserDefaults.standard.set(cacheGB, forKey: Self.cacheKey) }
     }
 
-    var isRunning: Bool { process != nil }
+    var isRunning: Bool {
+        process != nil
+    }
 
     private static let preferredKey = "soloistPreferred"
     private static let cacheKey = "soloistCacheGB"
@@ -181,7 +183,9 @@ import Security
             for _ in 0 ..< 15 where child.isRunning {
                 try? await Task.sleep(for: .milliseconds(100))
             }
-            if child.isRunning { kill(child.processIdentifier, SIGKILL) }
+            if child.isRunning {
+                kill(child.processIdentifier, SIGKILL)
+            }
             debugLog("Soloist", "Stopped")
         }
         process = nil
